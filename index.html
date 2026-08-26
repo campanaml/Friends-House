@@ -78,7 +78,7 @@
       </div>
 
       <button class="start" onclick="enterHouse()">PLAY NOW</button>
-      <div id="version-tag">Build: v1.6.0 (Mesh Sync Fix)</div>
+      <div id="version-tag">Build: v1.6.1 (Verified Relay)</div>
     </div>
   </div>
 
@@ -130,7 +130,7 @@
   </div>
 
   <script>
-    const GAME_VERSION = "1.6.0";
+    const GAME_VERSION = "1.6.1";
     const DEFAULT_GLOBAL_ROOM = "friends-neighborhood-global-v1";
 
     let audioCtx = null;
@@ -176,7 +176,8 @@
     let keys = {};
     let peer = null;
     let connections = {};
-    let knownPeers = new Set();
+    let isHost = false;
+    let hostConn = null;
     let animFrame = 0;
 
     const houses = [
@@ -288,71 +289,57 @@
     }
 
     function initMultiplayerGlobal() {
-      peer = new Peer(DEFAULT_GLOBAL_ROOM);
+      const joinDelay = Math.floor(Math.random() * 400);
 
-      peer.on('open', (id) => {
-        if (id === DEFAULT_GLOBAL_ROOM) {
+      setTimeout(() => {
+        peer = new Peer(DEFAULT_GLOBAL_ROOM);
+
+        peer.on('open', (id) => {
+          isHost = true;
           document.getElementById('status-tag').innerText = "HOSTING WORLD";
-        } else {
-          document.getElementById('status-tag').innerText = "CONNECTED";
-        }
-      });
+        });
 
-      peer.on('error', (err) => {
-        if (err.type === 'unavailable-id') {
-          setTimeout(() => {
+        peer.on('error', (err) => {
+          if (err.type === 'unavailable-id') {
             peer = new Peer();
             peer.on('open', () => {
               document.getElementById('status-tag').innerText = "CONNECTED";
-              let conn = peer.connect(DEFAULT_GLOBAL_ROOM);
-              bindConnectionEvents(conn);
+              connectToHost();
             });
             peer.on('connection', (conn) => bindConnectionEvents(conn));
-          }, Math.floor(Math.random() * 300) + 100);
-        }
-      });
+          }
+        });
 
-      peer.on('connection', (conn) => bindConnectionEvents(conn));
+        peer.on('connection', (conn) => bindConnectionEvents(conn));
+      }, joinDelay);
+    }
 
-      setInterval(() => {
-        if (peer && !peer.destroyed) {
-          broadcast({ type: 'mesh-discovery', senderPeerId: peer.id, activePeers: Array.from(knownPeers) });
-        }
-      }, 2000);
+    function connectToHost() {
+      hostConn = peer.connect(DEFAULT_GLOBAL_ROOM, { reliable: true });
+      bindConnectionEvents(hostConn);
     }
 
     function bindConnectionEvents(conn) {
       conn.on('open', () => {
         connections[conn.peer] = conn;
-        knownPeers.add(conn.peer);
-
         conn.send({ type: 'sync', player: localPlayer, vehicles, version: GAME_VERSION, peerId: peer.id });
-
-        for (let pId in connections) {
-          if (pId !== conn.peer && connections[pId].open) {
-            connections[pId].send({ type: 'connect-to-peer', targetPeerId: conn.peer });
-          }
-        }
       });
 
       conn.on('data', (data) => {
-        if (data.type === 'connect-to-peer') {
-          if (data.targetPeerId !== peer.id && !connections[data.targetPeerId]) {
-            let newConn = peer.connect(data.targetPeerId);
-            bindConnectionEvents(newConn);
-          }
-        } else if (data.type === 'mesh-discovery') {
-          data.activePeers.forEach(targetId => {
-            if (targetId !== peer.id && !connections[targetId]) {
-              let c = peer.connect(targetId);
-              bindConnectionEvents(c);
-            }
-          });
-        } else if (data.type === 'sync' || data.type === 'move') {
+        if (data.type === 'sync' || data.type === 'move') {
           players[data.player.id] = data.player;
           if (data.vehicles) vehicles = data.vehicles;
-          if (data.type === 'sync') {
+          
+          if (data.type === 'sync' && !isHost) {
             conn.send({ type: 'move', player: localPlayer, vehicles, version: GAME_VERSION });
+          }
+
+          if (isHost) {
+            for (let pId in connections) {
+              if (pId !== conn.peer && connections[pId].open) {
+                connections[pId].send(data);
+              }
+            }
           }
         } else if (data.type === 'chat') {
           let sameLocation = (data.location === localPlayer.location);
@@ -363,16 +350,24 @@
           addChatMessage(data.name, text);
           if (players[data.id] && sameLocation) setSpeechBubble(players[data.id], data.message);
           playChatChime();
+
+          if (isHost) {
+            for (let pId in connections) {
+              if (pId !== conn.peer && connections[pId].open) connections[pId].send(data);
+            }
+          }
         } else if (data.type === 'emote') {
           if (players[data.id]) setEmote(players[data.id], data.emote);
-        } else if (data.type === 'vehicles') {
-          vehicles = data.vehicles;
+          if (isHost) {
+            for (let pId in connections) {
+              if (pId !== conn.peer && connections[pId].open) connections[pId].send(data);
+            }
+          }
         }
         updatePlayerList();
       });
 
       conn.on('close', () => {
-        knownPeers.delete(conn.peer);
         delete connections[conn.peer];
         delete players[conn.peer];
         updatePlayerList();
