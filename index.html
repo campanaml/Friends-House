@@ -85,7 +85,7 @@
       </div>
 
       <button class="start" onclick="enterHouse()">ENTER WORLD</button>
-      <div id="version-tag">Build: v1.6.2 (Heartbeat & Extended Timeout)</div>
+      <div id="version-tag">Build: v1.6.3 (UI & Chat Bubble Enhancements)</div>
     </div>
   </div>
 
@@ -137,15 +137,14 @@
   </div>
 
   <script>
-    const GAME_VERSION = "1.6.2";
-    const PLAYER_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutos de timeout
+    const GAME_VERSION = "1.6.3";
+    const PLAYER_TIMEOUT_MS = 5 * 60 * 1000;
     let activeWorldRoom = "main-town";
 
     let selectedAvatar = 'martin';
     let selectedColor = '#ffffff';
     let heartbeatInterval = null;
 
-    // Auto-load saved settings
     window.addEventListener('load', () => {
       const savedName = localStorage.getItem('nh_name');
       const savedAvatar = localStorage.getItem('nh_avatar');
@@ -167,7 +166,6 @@
       }
     });
 
-    // Handle immediate graceful disconnect on tab close/reload
     window.addEventListener('beforeunload', () => {
       if (localPlayer.id) {
         broadcast({ type: 'leave', id: localPlayer.id });
@@ -320,7 +318,6 @@
       setupMobileControls();
       initMultiplayerGlobal();
 
-      // Heartbeat: Enviar presencia cada 1000ms independientemente del movimiento
       if (heartbeatInterval) clearInterval(heartbeatInterval);
       heartbeatInterval = setInterval(() => {
         if (localPlayer.id && Object.keys(connections).length > 0) {
@@ -394,7 +391,7 @@
             }
           }
         } else if (data.type === 'sync' || data.type === 'move') {
-          data.player.lastSeen = Date.now(); // Marca de tiempo actualizada con cada latido o movimiento
+          data.player.lastSeen = Date.now();
           players[data.player.id] = data.player;
           if (data.vehicles) vehicles = data.vehicles;
           
@@ -453,7 +450,6 @@
       let changed = false;
       for (let id in players) {
         if (id !== localPlayer.id) {
-          // Remueve jugadores si no se reciben datos por más de 5 minutos (300,000 ms)
           if (players[id].lastSeen && (now - players[id].lastSeen > PLAYER_TIMEOUT_MS)) {
             delete players[id];
             changed = true;
@@ -499,7 +495,7 @@
       }
     });
 
-    function setSpeechBubble(p, text) { p.bubble = { text, timer: Date.now() + 4000 }; }
+    function setSpeechBubble(p, text) { p.bubble = { text, timer: Date.now() + 4500 }; }
     function sendEmote(emote) { setEmote(localPlayer, emote); broadcast({ type: 'emote', id: localPlayer.id, emote }); }
     function setEmote(p, emote) { p.emote = { symbol: emote, timer: Date.now() + 3000 }; }
 
@@ -600,7 +596,6 @@
         playFootstepSFX();
       }
 
-      // Transmitir inmediatamente cuando se mueve (el Heartbeat se encarga del estado de reposo)
       if (localPlayer.isMoving && Object.keys(connections).length > 0) {
         broadcast({ type: 'move', player: localPlayer, vehicles });
       }
@@ -680,17 +675,53 @@
         }
       }
 
+      ctx.fillStyle = '#ffffff';
       ctx.font = '12px monospace'; ctx.textAlign = 'center';
-      ctx.fillText(p.name, p.x, renderY - 24);
+      ctx.fillText(p.name, p.x, renderY + 28);
 
       if (p.bubble && Date.now() < p.bubble.timer) {
-        ctx.fillStyle = '#fff'; ctx.fillRect(p.x - 45, renderY - 50, 90, 20);
-        ctx.fillStyle = '#000'; ctx.font = '10px monospace';
-        ctx.fillText(p.bubble.text.substring(0, 12), p.x, renderY - 36);
+        const maxLen = 14;
+        let displayMsg = p.bubble.text;
+        if (displayMsg.length > maxLen) {
+          displayMsg = displayMsg.substring(0, maxLen) + '...';
+        }
+
+        ctx.font = '10px monospace';
+        let textWidth = ctx.measureText(displayMsg).width;
+        let boxWidth = Math.max( textWidth + 14, 30 );
+        let boxHeight = 20;
+        let bubbleX = p.x - boxWidth / 2;
+        let bubbleY = renderY - 46;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(bubbleX, bubbleY, boxWidth, boxHeight);
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(bubbleX, bubbleY, boxWidth, boxHeight);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(p.x - 4, bubbleY + boxHeight);
+        ctx.lineTo(p.x + 4, bubbleY + boxHeight);
+        ctx.lineTo(p.x, bubbleY + boxHeight + 5);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = '#000000';
+        ctx.beginPath();
+        ctx.moveTo(p.x - 4, bubbleY + boxHeight);
+        ctx.lineTo(p.x, bubbleY + boxHeight + 5);
+        ctx.lineTo(p.x + 4, bubbleY + boxHeight);
+        ctx.stroke();
+
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'center';
+        ctx.fillText(displayMsg, p.x, bubbleY + 14);
       }
 
       if (p.emote && Date.now() < p.emote.timer) {
-        ctx.font = '16px monospace'; ctx.fillText(p.emote.symbol, p.x, renderY - 54);
+        ctx.font = '16px monospace'; ctx.textAlign = 'center';
+        ctx.fillText(p.emote.symbol, p.x, renderY - 54);
       }
     }
 
