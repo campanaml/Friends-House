@@ -3,13 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Friends House - Full Edition</title>
+  <title>Friends House - Fixed Edition</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; touch-action: manipulation; }
     body { background: #000; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
     
-    /* Login Modal */
     #setup-modal {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: #000; display: flex; flex-direction: column;
@@ -18,49 +17,37 @@
     .card { border: 2px solid #fff; padding: 20px; background: #000; text-align: center; width: 100%; max-width: 360px; }
     input { width: 100%; padding: 10px; margin: 8px 0; background: #111; color: #fff; border: 1px solid #fff; outline: none; font-size: 14px; }
     .options-grid { display: flex; justify-content: space-between; margin: 8px 0; gap: 4px; }
-    .opt-btn { border: 1px solid #fff; padding: 6px; cursor: pointer; background: #111; flex: 1; font-size: 11px; text-align: center; }
+    .opt-btn { border: 1px solid #fff; padding: 6px; cursor: pointer; background: #111; flex: 1; font-size: 11px; text-align: center; color: #fff; }
     .opt-btn.selected { background: #fff; color: #000; font-weight: bold; }
-    .color-swatch { width: 18px; height: 18px; border-radius: 50%; border: 1px solid #fff; display: inline-block; cursor: pointer; }
+    .color-swatch { width: 22px; height: 22px; border-radius: 50%; border: 1px solid #fff; display: inline-block; cursor: pointer; }
     .color-swatch.selected { outline: 2px solid #fff; outline-offset: 2px; }
     button.start { padding: 12px; background: #fff; color: #000; border: none; font-weight: bold; cursor: pointer; width: 100%; font-size: 14px; margin-top: 10px; }
 
-    /* Game Layout */
-    #game-container { 
-      position: relative; display: none; width: 100vw; max-width: 800px; margin: 0 auto;
-    }
+    #game-container { position: relative; display: none; width: 100vw; max-width: 800px; margin: 0 auto; }
     .canvas-wrapper { position: relative; width: 100%; padding-top: 75%; }
-    canvas { 
-      position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; 
-      border: 2px solid #fff; background: #000; display: block; 
-    }
+    canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; border: 2px solid #fff; background: #000; display: block; }
     
-    /* UI Overlays */
-    #room-info { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; font-size: 10px; z-index: 2; }
-    #player-list { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; font-size: 10px; z-index: 2; width: 130px; }
+    #room-info { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; font-size: 11px; z-index: 2; }
+    #player-list { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; font-size: 11px; z-index: 2; width: 140px; }
     
-    #chat-container {
-      position: absolute; bottom: 8px; left: 8px; width: 230px; max-width: 50%;
-      background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; z-index: 2;
-    }
-    #chat-logs { height: 60px; overflow-y: auto; font-size: 10px; margin-bottom: 4px; display: flex; flex-direction: column; gap: 2px; }
+    #chat-container { position: absolute; bottom: 8px; left: 8px; width: 240px; max-width: 50%; background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; z-index: 2; }
+    #chat-logs { height: 70px; overflow-y: auto; font-size: 10px; margin-bottom: 4px; display: flex; flex-direction: column; gap: 2px; word-break: break-word; }
     #chat-input { width: 100%; padding: 4px; background: #111; color: #fff; border: 1px solid #fff; outline: none; font-size: 10px; }
 
     #emote-bar { position: absolute; bottom: 8px; right: 8px; display: flex; gap: 4px; z-index: 2; }
-    .emote-btn { background: #111; border: 1px solid #fff; padding: 4px 8px; cursor: pointer; font-size: 14px; }
+    .emote-btn { background: #111; border: 1px solid #fff; padding: 4px 8px; cursor: pointer; font-size: 14px; color: #fff; }
     .emote-btn:active { background: #fff; }
 
-    /* Mobile D-Pad Controls */
     #controls-container { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding: 0 10px; }
-    #dpad { display: grid; grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 40px); gap: 4px; user-select: none; }
+    #dpad { display: grid; grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(3, 42px); gap: 4px; user-select: none; }
     .dbtn { background: #111; border: 1px solid #fff; color: #fff; font-size: 16px; font-weight: bold; display: flex; justify-content: center; align-items: center; border-radius: 4px; cursor: pointer; }
     .dbtn:active { background: #fff; color: #000; }
-    #action-btn { width: 80px; height: 80px; background: #111; border: 2px solid #fff; color: #fff; font-size: 12px; font-weight: bold; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; user-select: none; }
+    #action-btn { width: 80px; height: 80px; background: #111; border: 2px solid #fff; color: #fff; font-size: 12px; font-weight: bold; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; user-select: none; text-align: center; }
     #action-btn:active { background: #fff; color: #000; }
   </style>
 </head>
 <body>
 
-  <!-- Entry Setup Screen -->
   <div id="setup-modal">
     <div class="card">
       <h2 style="margin-bottom: 8px;">FRIENDS HOUSE</h2>
@@ -82,12 +69,11 @@
         <div class="color-swatch" style="background:#a5e8c5;" onclick="selectColor('#a5e8c5', this)"></div>
       </div>
 
-      <input type="text" id="room-code" placeholder="Room Code (Blank to Host)" />
+      <input type="text" id="room-code" placeholder="Room Code (Blank to Host)" maxlength="8" />
       <button class="start" onclick="enterHouse()">ENTER APARTMENT</button>
     </div>
   </div>
 
-  <!-- Game Screen -->
   <div id="game-container">
     <div class="canvas-wrapper">
       <canvas id="gameCanvas" width="800" height="600"></canvas>
@@ -104,7 +90,7 @@
 
       <div id="chat-container">
         <div id="chat-logs"></div>
-        <input type="text" id="chat-input" placeholder="Chat... (Press Enter)" />
+        <input type="text" id="chat-input" placeholder="Chat... (Enter)" maxlength="60" />
       </div>
 
       <div id="emote-bar">
@@ -115,7 +101,6 @@
       </div>
     </div>
 
-    <!-- Touch Controls for Mobile -->
     <div id="controls-container">
       <div id="dpad">
         <div></div><div class="dbtn" id="btn-up">▲</div><div></div>
@@ -127,13 +112,10 @@
   </div>
 
   <script>
-    // --- 8-BIT SYNTH AUDIO ENGINE ---
     let audioCtx = null;
-
     function initAudio() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-
     function playAudioTone(freq, type = 'square', duration = 0.1, vol = 0.05) {
       if (!audioCtx) return;
       try {
@@ -155,7 +137,6 @@
     function playTVSFX() { playAudioTone(440, 'square', 0.08, 0.03); }
     function playChatChime() { playAudioTone(587.33, 'sine', 0.08, 0.04); setTimeout(() => playAudioTone(880, 'sine', 0.12, 0.04), 80); }
 
-    // --- GAME ENGINE & STATE ---
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
@@ -174,8 +155,7 @@
     let connections = {};
     let animFrame = 0;
 
-    // Interactive Furniture & World State
-    let tvChannel = 0; // 0: OFF, 1: Static, 2: Pong Game
+    let tvChannel = 0;
     let pongState = { p1Y: 50, p2Y: 50, ballX: 40, ballY: 50, vx: 1.5, vy: 1 };
     
     let movableFurniture = [
@@ -195,10 +175,9 @@
       { x: 12, y: 360, w: 188, h: 10 }, { x: 240, y: 360, w: 220, h: 10 },
       { x: 500, y: 360, w: 220, h: 10 }, { x: 760, y: 360, w: 28, h: 10 },
       { x: 270, y: 370, w: 8, h: 220 }, { x: 530, y: 370, w: 8, h: 220 },
-      { x: 640, y: 20, w: 130, h: 80 } // Kitchen
+      { x: 640, y: 20, w: 130, h: 80 }
     ];
 
-    // Drag-and-drop state for Host
     let draggedItem = null;
     let dragOffset = { x: 0, y: 0 };
 
@@ -214,12 +193,18 @@
       el.classList.add('selected');
     }
 
+    function sanitizeText(str) {
+      let temp = document.createElement('div');
+      temp.textContent = str;
+      return temp.innerHTML;
+    }
+
     function enterHouse() {
       initAudio();
-      const name = document.getElementById('username').value.trim();
-      if (!name) return alert('Please enter your name!');
+      const rawName = document.getElementById('username').value.trim();
+      if (!rawName) return alert('Please enter your name!');
       
-      localPlayer.name = name;
+      localPlayer.name = sanitizeText(rawName.substring(0, 12));
       localPlayer.avatar = selectedAvatar;
       localPlayer.color = selectedColor;
       localPlayer.id = Math.random().toString(36).substring(2, 7);
@@ -233,6 +218,16 @@
       setupMouseDrag();
       initMultiplayer(targetRoom);
       requestAnimationFrame(gameLoop);
+    }
+
+    function getCanvasPointerPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: (clientX - rect.left) * (canvas.width / rect.width),
+        y: (clientY - rect.top) * (canvas.height / rect.height)
+      };
     }
 
     function setupMobileControls() {
@@ -249,33 +244,37 @@
       bindTouch('btn-left', 'ArrowLeft'); bindTouch('btn-right', 'ArrowRight');
     }
 
-    // Host Decorate Mode (Drag Furniture)
     function setupMouseDrag() {
-      canvas.addEventListener('mousedown', (e) => {
+      const handleStart = (e) => {
         if (!isHost) return;
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
-        const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
-
+        const pos = getCanvasPointerPos(e);
         movableFurniture.forEach(f => {
-          if (mouseX >= f.x && mouseX <= f.x + f.w && mouseY >= f.y && mouseY <= f.y + f.h) {
+          if (pos.x >= f.x && pos.x <= f.x + f.w && pos.y >= f.y && pos.y <= f.y + f.h) {
             draggedItem = f;
-            dragOffset.x = mouseX - f.x;
-            dragOffset.y = mouseY - f.y;
+            dragOffset.x = pos.x - f.x;
+            dragOffset.y = pos.y - f.y;
           }
         });
-      });
+      };
 
-      canvas.addEventListener('mousemove', (e) => {
+      const handleMove = (e) => {
         if (draggedItem) {
-          const rect = canvas.getBoundingClientRect();
-          draggedItem.x = (e.clientX - rect.left) * (canvas.width / rect.width) - dragOffset.x;
-          draggedItem.y = (e.clientY - rect.top) * (canvas.height / rect.height) - dragOffset.y;
+          const pos = getCanvasPointerPos(e);
+          draggedItem.x = Math.max(12, Math.min(788 - draggedItem.w, pos.x - dragOffset.x));
+          draggedItem.y = Math.max(12, Math.min(588 - draggedItem.h, pos.y - dragOffset.y));
           broadcast({ type: 'furniture', furniture: movableFurniture });
         }
-      });
+      };
 
-      canvas.addEventListener('mouseup', () => draggedItem = null);
+      const handleEnd = () => draggedItem = null;
+
+      canvas.addEventListener('mousedown', handleStart);
+      canvas.addEventListener('mousemove', handleMove);
+      window.addEventListener('mouseup', handleEnd);
+      
+      canvas.addEventListener('touchstart', handleStart, { passive: true });
+      canvas.addEventListener('touchmove', handleMove, { passive: true });
+      window.addEventListener('touchend', handleEnd);
     }
 
     function initMultiplayer(targetRoom) {
@@ -349,21 +348,25 @@
       listEl.innerHTML = html;
     }
 
-    // Keyboard & Action Handling
     window.addEventListener('keydown', e => {
+      if (document.activeElement === document.getElementById('chat-input')) return;
       keys[e.key] = true;
       if (e.key === 'e' || e.key === 'E') triggerInteraction();
     });
-    window.addEventListener('keyup', e => keys[e.key] = false);
+    window.addEventListener('keyup', e => {
+      if (document.activeElement === document.getElementById('chat-input')) return;
+      keys[e.key] = false;
+    });
 
     const chatInput = document.getElementById('chat-input');
     chatInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && chatInput.value.trim() !== '') {
-        const msg = chatInput.value.trim();
+        const msg = sanitizeText(chatInput.value.trim());
         addChatMessage(localPlayer.name, msg);
         setSpeechBubble(localPlayer, msg);
         broadcast({ type: 'chat', id: localPlayer.id, name: localPlayer.name, message: msg, x: localPlayer.x, y: localPlayer.y });
         chatInput.value = '';
+        chatInput.blur();
       }
     });
 
@@ -373,31 +376,29 @@
 
     function addChatMessage(sender, text) {
       const logs = document.getElementById('chat-logs');
-      logs.innerHTML += `<div><strong>${sender}:</strong> ${text}</div>`;
+      const msgDiv = document.createElement('div');
+      msgDiv.innerHTML = `<strong>${sender}:</strong> ${text}`;
+      logs.appendChild(msgDiv);
       logs.scrollTop = logs.scrollHeight;
     }
 
     function triggerInteraction() {
-      // Sitting on Couch
       let couch = movableFurniture.find(f => f.id === 'couch');
-      if (couch && Math.hypot(localPlayer.x - (couch.x + couch.w/2), localPlayer.y - (couch.y + couch.h/2)) < 35) {
+      if (couch && Math.hypot(localPlayer.x - (couch.x + couch.w/2), localPlayer.y - (couch.y + couch.h/2)) < 40) {
         localPlayer.isSeated = !localPlayer.isSeated;
         if (localPlayer.isSeated) { localPlayer.x = couch.x + 15; localPlayer.y = couch.y + 35; }
         broadcast({ type: 'move', player: localPlayer, tvChannel, doors });
       } 
-      // Toggle TV Channel
       else if (Math.hypot(localPlayer.x - 275, localPlayer.y - 100) < 45) {
         tvChannel = (tvChannel + 1) % 3;
         playTVSFX();
         broadcast({ type: 'interact', tvChannel, doors });
       } 
-      // Fridge Beverage
       else if (Math.hypot(localPlayer.x - 730, localPlayer.y - 65) < 45) {
         const drinks = ['🥤', '🧃', '☕', '🍺'];
         localPlayer.drink = drinks[Math.floor(Math.random() * drinks.length)];
         broadcast({ type: 'move', player: localPlayer, tvChannel, doors });
       } 
-      // Open/Close Doors
       else {
         doors.forEach(d => {
           if (Math.hypot(localPlayer.x - (d.x + d.w/2), localPlayer.y - d.y) < 35) {
@@ -457,7 +458,6 @@
         if (pongState.ballY <= 10 || pongState.ballY >= 90) pongState.vy *= -1;
         if (pongState.ballX <= 10 || pongState.ballX >= 90) pongState.vx *= -1;
 
-        // Control paddle with keys if player is near TV
         if (Math.hypot(localPlayer.x - 275, localPlayer.y - 100) < 60) {
           if (keys['ArrowUp'] || keys['w']) pongState.p1Y = Math.max(10, pongState.p1Y - 4);
           if (keys['ArrowDown'] || keys['s']) pongState.p1Y = Math.min(70, pongState.p1Y + 4);
@@ -502,16 +502,13 @@
         else ctx.strokeRect(d.x, d.y - 20, 8, 20);
       });
 
-      // Movable Furniture
       movableFurniture.forEach(f => {
         ctx.strokeRect(f.x, f.y, f.w, f.h);
         ctx.fillText(f.label, f.x + 6, f.y + f.h/2 + 4);
       });
 
-      // Kitchen
       ctx.fillText("KITCHEN", 670, 50); ctx.strokeRect(730, 25, 35, 40); ctx.fillText("FRIDGE", 732, 50);
 
-      // Interactive TV & Pong mini-game
       ctx.strokeRect(270, 50, 12, 100);
       if (tvChannel === 0) {
         ctx.fillText("TV: OFF", 240, 40);
@@ -520,9 +517,9 @@
         ctx.fillRect(272, 60 + (animFrame % 60), 8, 10);
       } else if (tvChannel === 2) {
         ctx.fillText("TV: PONG", 240, 40);
-        ctx.fillRect(272, 50 + (pongState.p1Y * 0.8), 3, 20); // Left Paddle
-        ctx.fillRect(279, 50 + (pongState.p2Y * 0.8), 3, 20); // Right Paddle
-        ctx.fillRect(272 + (pongState.ballX * 0.08), 50 + (pongState.ballY * 0.8), 3, 3); // Ball
+        ctx.fillRect(272, 50 + (pongState.p1Y * 0.8), 3, 20);
+        ctx.fillRect(279, 50 + (pongState.p2Y * 0.8), 3, 20);
+        ctx.fillRect(272 + (pongState.ballX * 0.08), 50 + (pongState.ballY * 0.8), 3, 3);
       }
 
       ctx.fillText("BEDROOM 1", 30, 390); ctx.fillText("BEDROOM 2", 290, 390); ctx.fillText("BEDROOM 3", 550, 390);
@@ -561,13 +558,13 @@
       ctx.fillText(p.name, p.x, renderY - 20);
 
       if (p.bubble && Date.now() < p.bubble.timer) {
-        ctx.fillStyle = '#fff'; ctx.fillRect(p.x - 40, renderY - 45, 80, 18);
+        ctx.fillStyle = '#fff'; ctx.fillRect(p.x - 45, renderY - 48, 90, 20);
         ctx.fillStyle = '#000'; ctx.font = '10px monospace';
-        ctx.fillText(p.bubble.text.substring(0, 10), p.x, renderY - 32);
+        ctx.fillText(p.bubble.text.substring(0, 12), p.x, renderY - 34);
       }
 
       if (p.emote && Date.now() < p.emote.timer) {
-        ctx.font = '16px monospace'; ctx.fillText(p.emote.symbol, p.x, renderY - 50);
+        ctx.font = '16px monospace'; ctx.fillText(p.emote.symbol, p.x, renderY - 52);
       }
     }
 
