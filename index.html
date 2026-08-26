@@ -82,7 +82,7 @@
 
       <input type="text" id="room-code" placeholder="Room Code (Blank to Host)" maxlength="8" />
       <button class="start" onclick="enterHouse()">ENTER WORLD</button>
-      <div id="version-tag">Build: v1.2.2 (Collapsible Chat + QA Passed)</div>
+      <div id="version-tag">Build: v1.2.3 (Door Collision Fix + QA Passed)</div>
     </div>
   </div>
 
@@ -134,7 +134,7 @@
   </div>
 
   <script>
-    const GAME_VERSION = "1.2.2";
+    const GAME_VERSION = "1.2.3";
 
     let audioCtx = null;
     function initAudio() {
@@ -183,9 +183,9 @@
     let animFrame = 0;
 
     const houses = [
-      { id: 'house_1', name: 'House 1', x: 100, y: 100, w: 400, h: 300, doorX: 300, doorY: 400, exitX: 300, exitY: 450 },
-      { id: 'house_2', name: 'House 2', x: 1000, y: 100, w: 400, h: 300, doorX: 1200, doorY: 400, exitX: 1200, exitY: 450 },
-      { id: 'house_3', name: 'House 3', x: 1800, y: 100, w: 400, h: 300, doorX: 2000, doorY: 400, exitX: 2000, exitY: 450 }
+      { id: 'house_1', name: 'House 1', x: 100, y: 100, w: 400, h: 300, doorX: 300, doorY: 400, exitX: 300, exitY: 425 },
+      { id: 'house_2', name: 'House 2', x: 1000, y: 100, w: 400, h: 300, doorX: 1200, doorY: 400, exitX: 1200, exitY: 425 },
+      { id: 'house_3', name: 'House 3', x: 1800, y: 100, w: 400, h: 300, doorX: 2000, doorY: 400, exitX: 2000, exitY: 425 }
     ];
 
     const houseInteriors = {
@@ -193,7 +193,7 @@
         name: 'House 1 Living Room', w: 600, h: 450,
         doorX: 300, doorY: 420, spawnX: 300, spawnY: 380,
         solids: [
-          { x: 0, y: 0, w: 600, h: 20 }, { x: 0, y: 430, w: 250, h: 20 }, { x: 350, y: 430, w: 250, h: 20 },
+          { x: 0, y: 0, w: 600, h: 20 }, { x: 0, y: 430, w: 600, h: 20 },
           { x: 0, y: 0, w: 20, h: 450 }, { x: 580, y: 0, w: 20, h: 450 },
           { x: 100, y: 80, w: 140, h: 60 }
         ]
@@ -202,7 +202,7 @@
         name: 'House 2 Lounge', w: 600, h: 450,
         doorX: 300, doorY: 420, spawnX: 300, spawnY: 380,
         solids: [
-          { x: 0, y: 0, w: 600, h: 20 }, { x: 0, y: 430, w: 250, h: 20 }, { x: 350, y: 430, w: 250, h: 20 },
+          { x: 0, y: 0, w: 600, h: 20 }, { x: 0, y: 430, w: 600, h: 20 },
           { x: 0, y: 0, w: 20, h: 450 }, { x: 580, y: 0, w: 20, h: 450 },
           { x: 220, y: 150, w: 160, h: 100 }
         ]
@@ -211,7 +211,7 @@
         name: 'House 3 Studio', w: 600, h: 450,
         doorX: 300, doorY: 420, spawnX: 300, spawnY: 380,
         solids: [
-          { x: 0, y: 0, w: 600, h: 20 }, { x: 0, y: 430, w: 250, h: 20 }, { x: 350, y: 430, w: 250, h: 20 },
+          { x: 0, y: 0, w: 600, h: 20 }, { x: 0, y: 430, w: 600, h: 20 },
           { x: 0, y: 0, w: 20, h: 450 }, { x: 580, y: 0, w: 20, h: 450 },
           { x: 400, y: 80, w: 120, h: 180 }
         ]
@@ -224,20 +224,18 @@
       { id: 'plane1', type: 'plane', icon: '✈️', x: 1200, y: 1200, w: 60, h: 60, driver: null, speed: 13 }
     ];
 
+    /* Solid walls blocking house entry without pressing ACTION button */
     const outdoorSolids = [
       { x: 0, y: 0, w: WORLD_WIDTH, h: 10 },
       { x: 0, y: WORLD_HEIGHT - 10, w: WORLD_WIDTH, h: 10 },
       { x: 0, y: 0, w: 10, h: WORLD_HEIGHT },
       { x: WORLD_WIDTH - 10, y: 0, w: 10, h: WORLD_HEIGHT },
-      // House 1
-      { x: 100, y: 100, w: 400, h: 10 }, { x: 100, y: 100, w: 10, h: 300 }, { x: 490, y: 100, w: 10, h: 300 },
-      { x: 100, y: 390, w: 170, h: 10 }, { x: 330, y: 390, w: 170, h: 10 },
-      // House 2
-      { x: 1000, y: 100, w: 400, h: 10 }, { x: 1000, y: 100, w: 10, h: 300 }, { x: 1390, y: 100, w: 10, h: 300 },
-      { x: 1000, y: 390, w: 170, h: 10 }, { x: 1230, y: 390, w: 170, h: 10 },
-      // House 3
-      { x: 1800, y: 100, w: 400, h: 10 }, { x: 1800, y: 100, w: 10, h: 300 }, { x: 2190, y: 100, w: 10, h: 300 },
-      { x: 1800, y: 390, w: 170, h: 10 }, { x: 2030, y: 390, w: 170, h: 10 }
+      // House 1 (Full solid walls)
+      { x: 100, y: 100, w: 400, h: 10 }, { x: 100, y: 100, w: 10, h: 300 }, { x: 490, y: 100, w: 10, h: 300 }, { x: 100, y: 390, w: 400, h: 10 },
+      // House 2 (Full solid walls)
+      { x: 1000, y: 100, w: 400, h: 10 }, { x: 1000, y: 100, w: 10, h: 300 }, { x: 1390, y: 100, w: 10, h: 300 }, { x: 1000, y: 390, w: 400, h: 10 },
+      // House 3 (Full solid walls)
+      { x: 1800, y: 100, w: 400, h: 10 }, { x: 1800, y: 100, w: 10, h: 300 }, { x: 2190, y: 100, w: 10, h: 300 }, { x: 1800, y: 390, w: 400, h: 10 }
     ];
 
     function toggleChat() {
@@ -458,7 +456,7 @@
 
       if (localPlayer.location === 'world') {
         for (let h of houses) {
-          if (Math.hypot(localPlayer.x - h.doorX, localPlayer.y - h.doorY) < 40) {
+          if (Math.hypot(localPlayer.x - h.doorX, localPlayer.y - h.doorY) < 50) {
             localPlayer.location = h.id;
             let room = houseInteriors[h.id];
             localPlayer.x = room.spawnX;
@@ -482,7 +480,7 @@
 
       if (localPlayer.location !== 'world') {
         let room = houseInteriors[localPlayer.location];
-        if (room && Math.hypot(localPlayer.x - room.doorX, localPlayer.y - room.doorY) < 40) {
+        if (room && Math.hypot(localPlayer.x - room.doorX, localPlayer.y - room.doorY) < 50) {
           let h = houses.find(item => item.id === localPlayer.location);
           localPlayer.location = 'world';
           if (h) {
@@ -567,7 +565,6 @@
       houses.forEach(h => {
         ctx.strokeRect(h.x, h.y, h.w, h.h);
         ctx.fillText(h.name, h.x + 40, h.y + 30);
-        ctx.clearRect(h.doorX - 20, h.doorY - 10, 40, 10);
         
         ctx.strokeStyle = '#0f0';
         ctx.strokeRect(h.doorX - 15, h.doorY - 8, 30, 8);
