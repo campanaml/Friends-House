@@ -647,83 +647,92 @@
     }
 
     function drawAvatar(p) {
-      ctx.fillStyle = p.color || '#ffffff';
-      ctx.strokeStyle = p.color || '#ffffff';
-      ctx.lineWidth = 2;
+  ctx.fillStyle = p.color || '#ffffff';
+  ctx.strokeStyle = p.color || '#ffffff';
+  ctx.lineWidth = 2;
 
-      let bobY = (p.isMoving && !p.vehicle) ? Math.sin(animFrame * 0.3) * 3 : 0;
-      let renderY = p.y + bobY;
+  let bobY = (p.isMoving && !p.vehicle) ? Math.sin(animFrame * 0.3) * 3 : 0;
+  let renderY = p.y + bobY;
 
-      if (!p.vehicle) {
-        ctx.beginPath();
-        if (p.avatar === 'martin') {
-          ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
-          ctx.rect(p.x - 8, renderY + 6, 16, 12);
-          ctx.stroke();
-          ctx.fillRect(p.x - 6, renderY - 6, 12, 4);
-        } else if (p.avatar === 'gaby') {
-          ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
-          ctx.rect(p.x - 8, renderY + 6, 16, 12);
-          ctx.stroke();
-          ctx.fillRect(p.x - 12, renderY - 8, 4, 8);
-          ctx.fillRect(p.x + 8, renderY - 8, 4, 8);
-        } else {
-          ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
-          ctx.rect(p.x - 8, renderY + 6, 16, 12);
-          ctx.stroke();
-          ctx.fillRect(p.x - 10, renderY - 12, 16, 3);
-        }
-      }
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '12px monospace'; ctx.textAlign = 'center';
-      ctx.fillText(p.name, p.x, renderY + 28);
-
-      if (p.bubble && Date.now() < p.bubble.timer) {
-        const maxLen = 14;
-        let displayMsg = p.bubble.text;
-        if (displayMsg.length > maxLen) {
-          displayMsg = displayMsg.substring(0, maxLen) + '...';
-        }
-
-        ctx.font = '10px monospace';
-        let textWidth = ctx.measureText(displayMsg).width;
-        let boxWidth = Math.max( textWidth + 14, 30 );
-        let boxHeight = 20;
-        let bubbleX = p.x - boxWidth / 2;
-        let bubbleY = renderY - 46;
-
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(bubbleX, bubbleY, boxWidth, boxHeight);
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(bubbleX, bubbleY, boxWidth, boxHeight);
-
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.moveTo(p.x - 4, bubbleY + boxHeight);
-        ctx.lineTo(p.x + 4, bubbleY + boxHeight);
-        ctx.lineTo(p.x, bubbleY + boxHeight + 5);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.strokeStyle = '#000000';
-        ctx.beginPath();
-        ctx.moveTo(p.x - 4, bubbleY + boxHeight);
-        ctx.lineTo(p.x, bubbleY + boxHeight + 5);
-        ctx.lineTo(p.x + 4, bubbleY + boxHeight);
-        ctx.stroke();
-
-        ctx.fillStyle = '#000000';
-        ctx.textAlign = 'center';
-        ctx.fillText(displayMsg, p.x, bubbleY + 14);
-      }
-
-      if (p.emote && Date.now() < p.emote.timer) {
-        ctx.font = '16px monospace'; ctx.textAlign = 'center';
-        ctx.fillText(p.emote.symbol, p.x, renderY - 54);
-      }
+  // 1. DIBUJAR CUERPO Y CABEZA
+  if (!p.vehicle) {
+    ctx.beginPath();
+    if (p.avatar === 'martin') {
+      ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
+      ctx.rect(p.x - 8, renderY + 6, 16, 12);
+      ctx.stroke();
+      ctx.fillRect(p.x - 6, renderY - 6, 12, 4);
+    } else if (p.avatar === 'gaby') {
+      ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
+      ctx.rect(p.x - 8, renderY + 6, 16, 12);
+      ctx.stroke();
+      ctx.fillRect(p.x - 12, renderY - 8, 4, 8);
+      ctx.fillRect(p.x + 8, renderY - 8, 4, 8);
+    } else {
+      ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
+      ctx.rect(p.x - 8, renderY + 6, 16, 12);
+      ctx.stroke();
+      ctx.fillRect(p.x - 10, renderY - 12, 16, 3);
     }
+  }
+
+  // 2. DIBUJAR NOMBRE (Estrictamente ABAJO del personaje)
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '11px monospace'; 
+  ctx.textAlign = 'center';
+  ctx.fillText(p.name, p.x, renderY + 26);
+
+  // 3. DIBUJAR GLOBO DE CHAT (ARRIBA del personaje)
+  if (p.bubble && Date.now() < p.bubble.timer) {
+    const maxLen = 14;
+    let displayMsg = p.bubble.text;
+    if (displayMsg.length > maxLen) {
+      displayMsg = displayMsg.substring(0, maxLen) + '...';
+    }
+
+    ctx.font = '10px monospace';
+    let textWidth = ctx.measureText(displayMsg).width;
+    let boxWidth = Math.max(textWidth + 12, 28);
+    let boxHeight = 18;
+    let bubbleX = p.x - boxWidth / 2;
+    let bubbleY = renderY - 32;
+
+    // Fondo del globo
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(bubbleX, bubbleY, boxWidth, boxHeight);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bubbleX, bubbleY, boxWidth, boxHeight);
+
+    // Flechita apuntando abajo
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(p.x - 4, bubbleY + boxHeight);
+    ctx.lineTo(p.x + 4, bubbleY + boxHeight);
+    ctx.lineTo(p.x, bubbleY + boxHeight + 4);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = '#000000';
+    ctx.beginPath();
+    ctx.moveTo(p.x - 4, bubbleY + boxHeight);
+    ctx.lineTo(p.x, bubbleY + boxHeight + 4);
+    ctx.lineTo(p.x + 4, bubbleY + boxHeight);
+    ctx.stroke();
+
+    // Texto del mensaje
+    ctx.fillStyle = '#000000';
+    ctx.textAlign = 'center';
+    ctx.fillText(displayMsg, p.x, bubbleY + 13);
+  }
+
+  // 4. DIBUJAR EMOTE (POR ENCIMA DEL GLOBO)
+  if (p.emote && Date.now() < p.emote.timer) {
+    ctx.font = '16px monospace'; 
+    ctx.textAlign = 'center';
+    ctx.fillText(p.emote.symbol, p.x, renderY - 40);
+  }
+}
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
