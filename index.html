@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Friends Neighborhood - Single Global World</title>
+  <title>Friends Neighborhood - Personal Homes</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; touch-action: manipulation; }
@@ -17,7 +17,7 @@
     .card { border: 2px solid #fff; padding: 20px; background: #000; text-align: center; width: 100%; max-width: 360px; }
     input { width: 100%; padding: 10px; margin: 8px 0; background: #111; color: #fff; border: 1px solid #fff; outline: none; font-size: 14px; }
     .options-grid { display: flex; justify-content: space-between; margin: 8px 0; gap: 4px; }
-    .opt-btn { border: 1px solid #fff; padding: 6px; cursor: pointer; background: #111; flex: 1; font-size: 11px; text-align: center; color: #fff; }
+    .opt-btn { border: 1px solid #fff; padding: 8px; cursor: pointer; background: #111; flex: 1; font-size: 11px; text-align: center; color: #fff; }
     .opt-btn.selected { background: #fff; color: #000; font-weight: bold; }
     .color-swatch { width: 22px; height: 22px; border-radius: 50%; border: 1px solid #fff; display: inline-block; cursor: pointer; }
     .color-swatch.selected { outline: 2px solid #fff; outline-offset: 2px; }
@@ -61,17 +61,15 @@
 
   <div id="setup-modal">
     <div class="card">
-      <h2 style="margin-bottom: 8px;">FRIENDS NEIGHBORHOOD</h2>
-      <input type="text" id="username" placeholder="Your Name..." maxlength="12" />
-      
-      <p style="font-size: 10px; margin-top: 6px;">SELECT AVATAR:</p>
+      <h2 style="margin-bottom: 8px;">NEIGHBORHOOD</h2>
+      <p style="font-size: 11px; margin-bottom: 6px; color: #aaa;">CHOOSE YOUR CHARACTER:</p>
       <div class="options-grid">
-        <div class="opt-btn selected" onclick="selectAvatar('rat', this)">🐀 Rat</div>
-        <div class="opt-btn" onclick="selectAvatar('pig', this)">🐖 Pig</div>
-        <div class="opt-btn" onclick="selectAvatar('guy', this)">🧍 Guy</div>
+        <div class="opt-btn selected" onclick="selectAvatar('martin', this)">🕶️ Martin</div>
+        <div class="opt-btn" onclick="selectAvatar('gaby', this)">🎧 Gaby</div>
+        <div class="opt-btn" onclick="selectAvatar('facu', this)">🧢 Facu</div>
       </div>
 
-      <p style="font-size: 10px; margin-top: 6px;">SELECT TINT:</p>
+      <p style="font-size: 10px; margin-top: 8px;">SELECT COLOR TINT:</p>
       <div class="options-grid" style="justify-content:center; gap:8px;">
         <div class="color-swatch selected" style="background:#ffffff;" onclick="selectColor('#ffffff', this)"></div>
         <div class="color-swatch" style="background:#aaaaaa;" onclick="selectColor('#aaaaaa', this)"></div>
@@ -81,7 +79,7 @@
       </div>
 
       <button class="start" onclick="enterHouse()">PLAY NOW</button>
-      <div id="version-tag">Build: v1.4.0 (Default Global World)</div>
+      <div id="version-tag">Build: v1.5.0 (Personal Homes)</div>
     </div>
   </div>
 
@@ -91,7 +89,7 @@
       
       <div id="room-info">
         <div>SERVER: <span id="display-room-code" style="font-weight:bold; color:#0f0;">GLOBAL</span></div>
-        <div id="location-tag" style="font-weight:bold; color:#0f0; margin-top:2px;">WORLD</div>
+        <div id="location-tag" style="font-weight:bold; color:#0f0; margin-top:2px;">HOME</div>
         <div id="status-tag" style="font-size: 9px; color: #0f0; margin-top:2px;">Connecting...</div>
       </div>
 
@@ -127,13 +125,13 @@
       </div>
       <div class="action-group">
         <div id="action-btn" onclick="triggerInteraction()">INTERACT<br>(E)</div>
-        <button id="reset-btn" onclick="resetPosition()">Reset Position</button>
+        <button id="reset-btn" onclick="resetPosition()">Go Home</button>
       </div>
     </div>
   </div>
 
   <script>
-    const GAME_VERSION = "1.4.0";
+    const GAME_VERSION = "1.5.0";
     const DEFAULT_GLOBAL_ROOM = "friends-neighborhood-global-v1";
 
     let audioCtx = null;
@@ -167,12 +165,12 @@
     const WORLD_WIDTH = 2400;
     const WORLD_HEIGHT = 1600;
 
-    let selectedAvatar = 'rat';
+    let selectedAvatar = 'martin';
     let selectedColor = '#ffffff';
 
     let localPlayer = { 
-      id: '', name: '', avatar: 'rat', color: '#ffffff', x: 300, y: 450, speed: 4, radius: 12,
-      dir: 'down', isMoving: false, location: 'world', vehicle: null, bubble: null, emote: null
+      id: '', name: 'Martin', avatar: 'martin', color: '#ffffff', x: 400, y: 450, speed: 4, radius: 12,
+      dir: 'down', isMoving: false, location: 'house_martin', vehicle: null, bubble: null, emote: null
     };
     
     let players = {}; 
@@ -182,9 +180,9 @@
     let animFrame = 0;
 
     const houses = [
-      { id: 'house_1', name: 'House 1', x: 100, y: 100, w: 400, h: 300, doorX: 300, doorY: 400, exitX: 300, exitY: 430, furniture: '🛋️ Living Room' },
-      { id: 'house_2', name: 'House 2', x: 1000, y: 100, w: 400, h: 300, doorX: 1200, doorY: 400, exitX: 1200, exitY: 430, furniture: '🍽️ Lounge' },
-      { id: 'house_3', name: 'House 3', x: 1800, y: 100, w: 400, h: 300, doorX: 2000, doorY: 400, exitX: 2000, exitY: 430, furniture: '🍸 Studio' }
+      { id: 'house_martin', name: "Martin's House", owner: 'martin', x: 100, y: 100, w: 400, h: 300, doorX: 300, doorY: 400, exitX: 300, exitY: 430, furniture: '🕶️ Martin Studio' },
+      { id: 'house_gaby', name: "Gaby's House", owner: 'gaby', x: 1000, y: 100, w: 400, h: 300, doorX: 1200, doorY: 400, exitX: 1200, exitY: 430, furniture: '🎧 Gaby Lounge' },
+      { id: 'house_facu', name: "Facu's House", owner: 'facu', x: 1800, y: 100, w: 400, h: 300, doorX: 2000, doorY: 400, exitX: 2000, exitY: 430, furniture: '🧢 Facu Room' }
     ];
 
     let vehicles = [
@@ -243,24 +241,30 @@
         if (v) v.driver = null;
         localPlayer.vehicle = null;
       }
-      localPlayer.location = 'world';
-      localPlayer.x = 300;
+      localPlayer.location = `house_${localPlayer.avatar}`;
+      localPlayer.x = 400;
       localPlayer.y = 450;
-      document.getElementById('location-tag').innerText = "WORLD";
+      let homeObj = houses.find(h => h.id === localPlayer.location);
+      document.getElementById('location-tag').innerText = homeObj ? homeObj.name.toUpperCase() : "HOME";
       broadcast({ type: 'move', player: localPlayer, vehicles });
       updatePlayerList();
     }
 
     function enterHouse() {
       initAudio();
-      const rawName = document.getElementById('username').value.trim();
-      if (!rawName) return alert('Please enter your name!');
       
-      localPlayer.name = sanitizeText(rawName.substring(0, 12));
+      let avatarNames = { 'martin': 'Martin', 'gaby': 'Gaby', 'facu': 'Facu' };
+      localPlayer.name = avatarNames[selectedAvatar];
       localPlayer.avatar = selectedAvatar;
       localPlayer.color = selectedColor;
       localPlayer.id = Math.random().toString(36).substring(2, 7);
-      
+      localPlayer.location = `house_${selectedAvatar}`;
+      localPlayer.x = 400;
+      localPlayer.y = 450;
+
+      let homeObj = houses.find(h => h.id === localPlayer.location);
+      document.getElementById('location-tag').innerText = homeObj ? homeObj.name.toUpperCase() : "HOME";
+
       document.getElementById('setup-modal').style.display = 'none';
       document.getElementById('game-container').style.display = 'block';
 
@@ -284,7 +288,6 @@
     }
 
     function initMultiplayerGlobal() {
-      // Automatic default server auto-connect system
       peer = new Peer(DEFAULT_GLOBAL_ROOM);
 
       peer.on('open', () => {
@@ -293,7 +296,6 @@
 
       peer.on('error', (err) => {
         if (err.type === 'unavailable-id') {
-          // Global host already exists, connect as client
           peer = new Peer();
           peer.on('open', () => {
             document.getElementById('status-tag').innerText = "CONNECTED";
@@ -504,12 +506,12 @@
       ctx.fillStyle = '#222'; ctx.fillRect(800, 1150, 900, 100);
       ctx.fillStyle = '#fff'; ctx.font = '12px monospace'; ctx.fillText("AIRSTRIP", 1200, 1205);
 
-      // Houses
+      // Personal Houses
       ctx.lineWidth = 2;
       houses.forEach(h => {
         ctx.strokeStyle = '#fff';
         ctx.strokeRect(h.x, h.y, h.w, h.h);
-        ctx.fillText(h.name, h.x + 160, h.y + 150);
+        ctx.fillText(h.name, h.x + 150, h.y + 150);
         
         ctx.fillStyle = '#0f0';
         ctx.fillRect(h.doorX - 20, h.doorY - 5, 40, 10);
@@ -531,7 +533,7 @@
       ctx.fillStyle = '#0f0';
       ctx.fillRect(350, 490, 100, 10);
       ctx.fillStyle = '#fff'; ctx.font = '12px monospace'; ctx.textAlign = 'center';
-      ctx.fillText("EXIT", 400, 480);
+      ctx.fillText("EXIT TO WORLD", 400, 480);
 
       ctx.strokeRect(250, 200, 300, 100);
       let houseObj = houses.find(h => h.id === localPlayer.location);
@@ -548,19 +550,26 @@
 
       if (!p.vehicle) {
         ctx.beginPath();
-        if (p.avatar === 'rat') {
-          ctx.arc(p.x, renderY, 12, 0, Math.PI * 2);
-          let earOffset = p.dir === 'left' ? -4 : (p.dir === 'right' ? 4 : 0);
-          ctx.arc(p.x - 8 + earOffset, renderY - 10, 5, 0, Math.PI * 2);
-          ctx.arc(p.x + 8 + earOffset, renderY - 10, 5, 0, Math.PI * 2);
-        } else if (p.avatar === 'pig') {
-          ctx.rect(p.x - 12, renderY - 12, 24, 24);
-          ctx.rect(p.x - 4, renderY - 4, 8, 8);
+        if (p.avatar === 'martin') {
+          // Martin (Cool Guy with Sunglasses)
+          ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
+          ctx.rect(p.x - 8, renderY + 6, 16, 12);
+          ctx.stroke();
+          ctx.fillRect(p.x - 6, renderY - 6, 12, 4); // Sunglasses
+        } else if (p.avatar === 'gaby') {
+          // Gaby (With Headphones)
+          ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
+          ctx.rect(p.x - 8, renderY + 6, 16, 12);
+          ctx.stroke();
+          ctx.fillRect(p.x - 12, renderY - 8, 4, 8); // Headphone L
+          ctx.fillRect(p.x + 8, renderY - 8, 4, 8);  // Headphone R
         } else {
-          ctx.arc(p.x, renderY - 6, 8, 0, Math.PI * 2);
-          ctx.rect(p.x - 8, renderY + 2, 16, 16);
+          // Facu (With Cap)
+          ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
+          ctx.rect(p.x - 8, renderY + 6, 16, 12);
+          ctx.stroke();
+          ctx.fillRect(p.x - 10, renderY - 12, 16, 3); // Cap visor
         }
-        ctx.stroke();
       }
 
       ctx.font = '12px monospace'; ctx.textAlign = 'center';
