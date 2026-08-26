@@ -32,7 +32,6 @@
     #room-info { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; font-size: 11px; z-index: 2; }
     #player-list { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; font-size: 11px; z-index: 2; width: 140px; }
     
-    /* Collapsible Chat Box Styling */
     #chat-container { position: absolute; bottom: 8px; left: 8px; width: 240px; max-width: 50%; background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; z-index: 2; }
     #chat-header { display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: bold; cursor: pointer; user-select: none; border-bottom: 1px solid #444; padding-bottom: 2px; margin-bottom: 4px; }
     #chat-header:hover { color: #ff0; }
@@ -79,7 +78,7 @@
       </div>
 
       <button class="start" onclick="enterHouse()">PLAY NOW</button>
-      <div id="version-tag">Build: v1.5.0 (Personal Homes)</div>
+      <div id="version-tag">Build: v1.6.0 (Mesh Sync Fix)</div>
     </div>
   </div>
 
@@ -131,7 +130,7 @@
   </div>
 
   <script>
-    const GAME_VERSION = "1.5.0";
+    const GAME_VERSION = "1.6.0";
     const DEFAULT_GLOBAL_ROOM = "friends-neighborhood-global-v1";
 
     let audioCtx = null;
@@ -177,6 +176,7 @@
     let keys = {};
     let peer = null;
     let connections = {};
+    let knownPeers = new Set();
     let animFrame = 0;
 
     const houses = [
@@ -290,31 +290,65 @@
     function initMultiplayerGlobal() {
       peer = new Peer(DEFAULT_GLOBAL_ROOM);
 
-      peer.on('open', () => {
-        document.getElementById('status-tag').innerText = "HOSTING WORLD";
+      peer.on('open', (id) => {
+        if (id === DEFAULT_GLOBAL_ROOM) {
+          document.getElementById('status-tag').innerText = "HOSTING WORLD";
+        } else {
+          document.getElementById('status-tag').innerText = "CONNECTED";
+        }
       });
 
       peer.on('error', (err) => {
         if (err.type === 'unavailable-id') {
-          peer = new Peer();
-          peer.on('open', () => {
-            document.getElementById('status-tag').innerText = "CONNECTED";
-            bindConnectionEvents(peer.connect(DEFAULT_GLOBAL_ROOM));
-          });
+          setTimeout(() => {
+            peer = new Peer();
+            peer.on('open', () => {
+              document.getElementById('status-tag').innerText = "CONNECTED";
+              let conn = peer.connect(DEFAULT_GLOBAL_ROOM);
+              bindConnectionEvents(conn);
+            });
+            peer.on('connection', (conn) => bindConnectionEvents(conn));
+          }, Math.floor(Math.random() * 300) + 100);
         }
       });
 
       peer.on('connection', (conn) => bindConnectionEvents(conn));
+
+      setInterval(() => {
+        if (peer && !peer.destroyed) {
+          broadcast({ type: 'mesh-discovery', senderPeerId: peer.id, activePeers: Array.from(knownPeers) });
+        }
+      }, 2000);
     }
 
     function bindConnectionEvents(conn) {
       conn.on('open', () => {
         connections[conn.peer] = conn;
-        conn.send({ type: 'sync', player: localPlayer, vehicles, version: GAME_VERSION });
+        knownPeers.add(conn.peer);
+
+        conn.send({ type: 'sync', player: localPlayer, vehicles, version: GAME_VERSION, peerId: peer.id });
+
+        for (let pId in connections) {
+          if (pId !== conn.peer && connections[pId].open) {
+            connections[pId].send({ type: 'connect-to-peer', targetPeerId: conn.peer });
+          }
+        }
       });
 
       conn.on('data', (data) => {
-        if (data.type === 'sync' || data.type === 'move') {
+        if (data.type === 'connect-to-peer') {
+          if (data.targetPeerId !== peer.id && !connections[data.targetPeerId]) {
+            let newConn = peer.connect(data.targetPeerId);
+            bindConnectionEvents(newConn);
+          }
+        } else if (data.type === 'mesh-discovery') {
+          data.activePeers.forEach(targetId => {
+            if (targetId !== peer.id && !connections[targetId]) {
+              let c = peer.connect(targetId);
+              bindConnectionEvents(c);
+            }
+          });
+        } else if (data.type === 'sync' || data.type === 'move') {
           players[data.player.id] = data.player;
           if (data.vehicles) vehicles = data.vehicles;
           if (data.type === 'sync') {
@@ -330,9 +364,7 @@
           if (players[data.id] && sameLocation) setSpeechBubble(players[data.id], data.message);
           playChatChime();
         } else if (data.type === 'emote') {
-          if (players[data.id]) {
-            setEmote(players[data.id], data.emote);
-          }
+          if (players[data.id]) setEmote(players[data.id], data.emote);
         } else if (data.type === 'vehicles') {
           vehicles = data.vehicles;
         }
@@ -340,6 +372,7 @@
       });
 
       conn.on('close', () => {
+        knownPeers.delete(conn.peer);
         delete connections[conn.peer];
         delete players[conn.peer];
         updatePlayerList();
@@ -495,18 +528,15 @@
     function drawWorld() {
       ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff'; ctx.lineWidth = 2;
 
-      // Roads
       ctx.strokeStyle = '#333'; ctx.lineWidth = 60; ctx.beginPath();
       ctx.moveTo(0, 500); ctx.lineTo(WORLD_WIDTH, 500);
       ctx.moveTo(800, 0); ctx.lineTo(800, WORLD_HEIGHT);
       ctx.moveTo(1600, 0); ctx.lineTo(1600, WORLD_HEIGHT);
       ctx.stroke();
 
-      // Airstrip
       ctx.fillStyle = '#222'; ctx.fillRect(800, 1150, 900, 100);
       ctx.fillStyle = '#fff'; ctx.font = '12px monospace'; ctx.fillText("AIRSTRIP", 1200, 1205);
 
-      // Personal Houses
       ctx.lineWidth = 2;
       houses.forEach(h => {
         ctx.strokeStyle = '#fff';
@@ -551,24 +581,21 @@
       if (!p.vehicle) {
         ctx.beginPath();
         if (p.avatar === 'martin') {
-          // Martin (Cool Guy with Sunglasses)
           ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
           ctx.rect(p.x - 8, renderY + 6, 16, 12);
           ctx.stroke();
-          ctx.fillRect(p.x - 6, renderY - 6, 12, 4); // Sunglasses
+          ctx.fillRect(p.x - 6, renderY - 6, 12, 4);
         } else if (p.avatar === 'gaby') {
-          // Gaby (With Headphones)
           ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
           ctx.rect(p.x - 8, renderY + 6, 16, 12);
           ctx.stroke();
-          ctx.fillRect(p.x - 12, renderY - 8, 4, 8); // Headphone L
-          ctx.fillRect(p.x + 8, renderY - 8, 4, 8);  // Headphone R
+          ctx.fillRect(p.x - 12, renderY - 8, 4, 8);
+          ctx.fillRect(p.x + 8, renderY - 8, 4, 8);
         } else {
-          // Facu (With Cap)
           ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
           ctx.rect(p.x - 8, renderY + 6, 16, 12);
           ctx.stroke();
-          ctx.fillRect(p.x - 10, renderY - 12, 16, 3); // Cap visor
+          ctx.fillRect(p.x - 10, renderY - 12, 16, 3);
         }
       }
 
