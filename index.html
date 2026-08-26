@@ -29,6 +29,42 @@
     .canvas-wrapper { position: relative; width: 100%; padding-top: 75%; }
     canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; border: 2px solid #fff; background: #000; display: block; }
     
+    /* Contenedor de Notificaciones Flotantes */
+    #notification-container {
+      position: absolute;
+      top: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    .toast-notification {
+      background: rgba(0, 0, 0, 0.9);
+      border: 1px solid #fff;
+      color: #fff;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-family: monospace;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.8);
+      animation: fadeInOut 2.5s forwards;
+    }
+
+    .toast-notification.error { border-color: #f55; color: #f55; }
+    .toast-notification.success { border-color: #5f5; color: #5f5; }
+
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translateY(-10px); }
+      15% { opacity: 1; transform: translateY(0); }
+      85% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-10px); }
+    }
+
     #room-info { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; font-size: 11px; z-index: 2; }
     #player-list { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; font-size: 11px; z-index: 2; width: 140px; }
     
@@ -96,7 +132,7 @@
       </div>
 
       <button class="start" onclick="enterHouse()">ENTER WORLD</button>
-      <div id="version-tag">Build: v1.7.0 (Economy, Shop & Inventory System)</div>
+      <div id="version-tag">Build: v1.7.0 (Economy, Shop & Toast System)</div>
     </div>
   </div>
 
@@ -104,6 +140,8 @@
     <div class="canvas-wrapper">
       <canvas id="gameCanvas" width="800" height="600"></canvas>
       
+      <div id="notification-container"></div>
+
       <div id="room-info">
         <div>WORLD: <span id="display-room-code" style="font-weight:bold; color:#0f0;">MAIN-TOWN</span></div>
         <div id="location-tag" style="font-weight:bold; color:#0f0; margin-top:2px;">HOME</div>
@@ -309,6 +347,21 @@
       { x: 250, y: 200, w: 300, h: 100 }
     ];
 
+    function showNotification(text, type = 'info') {
+      const container = document.getElementById('notification-container');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      toast.className = `toast-notification ${type}`;
+      toast.innerText = text;
+
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.remove();
+      }, 2500);
+    }
+
     function updateCoinsDisplay() {
       document.getElementById('coins-tag').innerText = `💰 COINS: $${localPlayer.coins}`;
       localStorage.setItem('nh_coins', localPlayer.coins);
@@ -355,9 +408,9 @@
         updateCoinsDisplay();
         renderShop();
         playCoinSFX();
-        addChatMessage("SYSTEM", `Purchased ${item.name}!`);
+        showNotification(`Purchased ${item.name}!`, 'success');
       } else {
-        addChatMessage("SYSTEM", "Not enough coins!");
+        showNotification("Not enough coins!", 'error');
       }
     }
 
@@ -479,6 +532,7 @@
         peer.on('open', () => {
           isHost = true;
           document.getElementById('status-tag').innerText = "HOSTING WORLD";
+          showNotification("You are hosting this world", "success");
         });
 
         peer.on('error', (err) => {
@@ -702,6 +756,7 @@
           localPlayer.coins += 10;
           updateCoinsDisplay();
           playCoinSFX();
+          showNotification("+$10 Coins!", 'success');
           setTimeout(() => {
             coin.x = Math.floor(Math.random() * (WORLD_WIDTH - 200)) + 100;
             coin.y = Math.floor(Math.random() * (WORLD_HEIGHT - 200)) + 100;
