@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Friends Neighborhood - World Edition</title>
+  <title>Friends Neighborhood - World & Interiors Edition</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; touch-action: manipulation; }
@@ -76,7 +76,7 @@
 
       <input type="text" id="room-code" placeholder="Room Code (Blank to Host)" maxlength="8" />
       <button class="start" onclick="enterHouse()">ENTER WORLD</button>
-      <div id="version-tag">Build: v1.1.0 (Neighborhood + Vehicles)</div>
+      <div id="version-tag">Build: v1.2.1 (Interiors + QA Verified)</div>
     </div>
   </div>
 
@@ -86,12 +86,12 @@
       
       <div id="room-info">
         <div>ROOM: <span id="display-room-code" style="font-weight:bold;">---</span></div>
+        <div id="location-tag" style="font-weight:bold; color:#ff0; margin-top:2px;">WORLD</div>
         <div id="status-tag" style="font-size: 9px; color: #0f0; margin-top:2px;">Connecting...</div>
-        <div style="font-size: 8px; color: #888; margin-top:2px;">v1.1.0</div>
       </div>
 
       <div id="player-list">
-        <div style="font-weight:bold; border-bottom:1px solid #fff; margin-bottom:4px;">NEIGHBORS</div>
+        <div style="font-weight:bold; border-bottom:1px solid #fff; margin-bottom:4px;">HERE NOW</div>
         <div id="player-names"></div>
       </div>
 
@@ -122,7 +122,7 @@
   </div>
 
   <script>
-    const GAME_VERSION = "1.1.0";
+    const GAME_VERSION = "1.2.1";
 
     let audioCtx = null;
     function initAudio() {
@@ -147,6 +147,7 @@
     function playFootstepSFX() { playAudioTone(100 + Math.random()*40, 'triangle', 0.04, 0.02); }
     function playVehicleSFX() { playAudioTone(80 + Math.random()*20, 'sawtooth', 0.06, 0.03); }
     function playChatChime() { playAudioTone(587.33, 'sine', 0.08, 0.04); setTimeout(() => playAudioTone(880, 'sine', 0.12, 0.04), 80); }
+    function playDoorSFX() { playAudioTone(300, 'sine', 0.1, 0.05); setTimeout(() => playAudioTone(150, 'sine', 0.15, 0.05), 50); }
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -159,8 +160,8 @@
     let isHost = false;
 
     let localPlayer = { 
-      id: '', name: '', avatar: 'rat', color: '#ffffff', x: 300, y: 400, speed: 4, radius: 12,
-      dir: 'down', isMoving: false, vehicle: null, bubble: null, emote: null 
+      id: '', name: '', avatar: 'rat', color: '#ffffff', x: 300, y: 450, speed: 4, radius: 12,
+      dir: 'down', isMoving: false, vehicle: null, bubble: null, emote: null, location: 'world'
     };
     
     let players = {}; 
@@ -169,11 +170,42 @@
     let connections = {};
     let animFrame = 0;
 
+    // Fixed exitY to 450 to prevent collision entrapment in exterior house walls
     const houses = [
-      { id: 'House 1', x: 100, y: 100, w: 400, h: 300, doorX: 300, doorY: 400 },
-      { id: 'House 2', x: 1000, y: 100, w: 400, h: 300, doorX: 1200, doorY: 400 },
-      { id: 'House 3', x: 1800, y: 100, w: 400, h: 300, doorX: 2000, doorY: 400 }
+      { id: 'house_1', name: 'House 1', x: 100, y: 100, w: 400, h: 300, doorX: 300, doorY: 400, exitX: 300, exitY: 450 },
+      { id: 'house_2', name: 'House 2', x: 1000, y: 100, w: 400, h: 300, doorX: 1200, doorY: 400, exitX: 1200, exitY: 450 },
+      { id: 'house_3', name: 'House 3', x: 1800, y: 100, w: 400, h: 300, doorX: 2000, doorY: 400, exitX: 2000, exitY: 450 }
     ];
+
+    const houseInteriors = {
+      house_1: {
+        name: 'House 1 Living Room', w: 600, h: 450,
+        doorX: 300, doorY: 420, spawnX: 300, spawnY: 380,
+        solids: [
+          { x: 0, y: 0, w: 600, h: 20 }, { x: 0, y: 430, w: 250, h: 20 }, { x: 350, y: 430, w: 250, h: 20 },
+          { x: 0, y: 0, w: 20, h: 450 }, { x: 580, y: 0, w: 20, h: 450 },
+          { x: 100, y: 80, w: 140, h: 60 }
+        ]
+      },
+      house_2: {
+        name: 'House 2 Lounge', w: 600, h: 450,
+        doorX: 300, doorY: 420, spawnX: 300, spawnY: 380,
+        solids: [
+          { x: 0, y: 0, w: 600, h: 20 }, { x: 0, y: 430, w: 250, h: 20 }, { x: 350, y: 430, w: 250, h: 20 },
+          { x: 0, y: 0, w: 20, h: 450 }, { x: 580, y: 0, w: 20, h: 450 },
+          { x: 220, y: 150, w: 160, h: 100 }
+        ]
+      },
+      house_3: {
+        name: 'House 3 Studio', w: 600, h: 450,
+        doorX: 300, doorY: 420, spawnX: 300, spawnY: 380,
+        solids: [
+          { x: 0, y: 0, w: 600, h: 20 }, { x: 0, y: 430, w: 250, h: 20 }, { x: 350, y: 430, w: 250, h: 20 },
+          { x: 0, y: 0, w: 20, h: 450 }, { x: 580, y: 0, w: 20, h: 450 },
+          { x: 400, y: 80, w: 120, h: 180 }
+        ]
+      }
+    };
 
     let vehicles = [
       { id: 'car1', type: 'car', icon: '🚗', x: 550, y: 450, w: 40, h: 40, driver: null, speed: 8 },
@@ -181,7 +213,7 @@
       { id: 'plane1', type: 'plane', icon: '✈️', x: 1200, y: 1200, w: 60, h: 60, driver: null, speed: 13 }
     ];
 
-    const solids = [
+    const outdoorSolids = [
       { x: 0, y: 0, w: WORLD_WIDTH, h: 10 },
       { x: 0, y: WORLD_HEIGHT - 10, w: WORLD_WIDTH, h: 10 },
       { x: 0, y: 0, w: 10, h: WORLD_HEIGHT },
@@ -221,9 +253,19 @@
         if (v) v.driver = null;
         localPlayer.vehicle = null;
       }
-      localPlayer.x = 300;
-      localPlayer.y = 400;
+
+      if (localPlayer.location === 'world') {
+        localPlayer.x = 300;
+        localPlayer.y = 450;
+      } else {
+        let room = houseInteriors[localPlayer.location];
+        if (room) {
+          localPlayer.x = room.spawnX;
+          localPlayer.y = room.spawnY;
+        }
+      }
       broadcast({ type: 'move', player: localPlayer, vehicles });
+      updatePlayerList();
     }
 
     function enterHouse() {
@@ -235,6 +277,7 @@
       localPlayer.avatar = selectedAvatar;
       localPlayer.color = selectedColor;
       localPlayer.id = Math.random().toString(36).substring(2, 7);
+      localPlayer.location = 'world';
       
       const targetRoom = document.getElementById('room-code').value.trim().toLowerCase();
       
@@ -278,7 +321,6 @@
     function bindConnectionEvents(conn) {
       conn.on('open', () => {
         connections[conn.peer] = conn;
-        // Broadcast local player state and vehicle array immediately on handshake
         conn.send({ type: 'sync', player: localPlayer, vehicles, version: GAME_VERSION });
       });
 
@@ -290,15 +332,19 @@
             conn.send({ type: 'move', player: localPlayer, vehicles, version: GAME_VERSION });
           }
         } else if (data.type === 'chat') {
-          let dist = Math.hypot(localPlayer.x - data.x, localPlayer.y - data.y);
-          let isNear = dist < 400;
-          let text = isNear ? data.message : "...[distant chat]...";
-          
-          addChatMessage(data.name, text);
-          if (players[data.id] && isNear) setSpeechBubble(players[data.id], data.message);
-          playChatChime();
+          if (data.location === localPlayer.location) {
+            let dist = Math.hypot(localPlayer.x - data.x, localPlayer.y - data.y);
+            let isNear = dist < 400;
+            let text = isNear ? data.message : "...[distant chat]...";
+            
+            addChatMessage(data.name, text);
+            if (players[data.id] && isNear) setSpeechBubble(players[data.id], data.message);
+            playChatChime();
+          }
         } else if (data.type === 'emote') {
-          if (players[data.id]) setEmote(players[data.id], data.emote);
+          if (players[data.id] && players[data.id].location === localPlayer.location) {
+            setEmote(players[data.id], data.emote);
+          }
         } else if (data.type === 'vehicles') {
           vehicles = data.vehicles;
         }
@@ -322,9 +368,20 @@
       const listEl = document.getElementById('player-names');
       let html = `<div>• ${localPlayer.name} (You)</div>`;
       for (let id in players) {
-        if (id !== localPlayer.id) html += `<div>• ${players[id].name}</div>`;
+        if (id !== localPlayer.id && players[id].location === localPlayer.location) {
+          html += `<div>• ${players[id].name}</div>`;
+        }
       }
       listEl.innerHTML = html;
+      
+      const locTag = document.getElementById('location-tag');
+      if (localPlayer.location === 'world') {
+        locTag.innerText = "WORLD";
+        locTag.style.color = "#0f0";
+      } else {
+        locTag.innerText = localPlayer.location.toUpperCase().replace('_', ' ');
+        locTag.style.color = "#ff0";
+      }
     }
 
     window.addEventListener('keydown', e => {
@@ -343,7 +400,10 @@
         const msg = sanitizeText(chatInput.value.trim());
         addChatMessage(localPlayer.name, msg);
         setSpeechBubble(localPlayer, msg);
-        broadcast({ type: 'chat', id: localPlayer.id, name: localPlayer.name, message: msg, x: localPlayer.x, y: localPlayer.y });
+        broadcast({ 
+          type: 'chat', id: localPlayer.id, name: localPlayer.name, 
+          message: msg, x: localPlayer.x, y: localPlayer.y, location: localPlayer.location 
+        });
         chatInput.value = '';
         chatInput.blur();
       }
@@ -374,13 +434,47 @@
         return;
       }
 
-      vehicles.forEach(v => {
-        if (!v.driver && Math.hypot(localPlayer.x - v.x, localPlayer.y - v.y) < 50) {
-          v.driver = localPlayer.id;
-          localPlayer.vehicle = v.id;
+      if (localPlayer.location === 'world') {
+        for (let h of houses) {
+          if (Math.hypot(localPlayer.x - h.doorX, localPlayer.y - h.doorY) < 40) {
+            localPlayer.location = h.id;
+            let room = houseInteriors[h.id];
+            localPlayer.x = room.spawnX;
+            localPlayer.y = room.spawnY;
+            playDoorSFX();
+            updatePlayerList();
+            broadcast({ type: 'move', player: localPlayer, vehicles });
+            return;
+          }
         }
-      });
-      broadcast({ type: 'move', player: localPlayer, vehicles });
+
+        vehicles.forEach(v => {
+          if (!v.driver && Math.hypot(localPlayer.x - v.x, localPlayer.y - v.y) < 50) {
+            v.driver = localPlayer.id;
+            localPlayer.vehicle = v.id;
+          }
+        });
+        broadcast({ type: 'move', player: localPlayer, vehicles });
+        return;
+      }
+
+      if (localPlayer.location !== 'world') {
+        let room = houseInteriors[localPlayer.location];
+        if (room && Math.hypot(localPlayer.x - room.doorX, localPlayer.y - room.doorY) < 40) {
+          let h = houses.find(item => item.id === localPlayer.location);
+          localPlayer.location = 'world';
+          if (h) {
+            localPlayer.x = h.exitX;
+            localPlayer.y = h.exitY;
+          } else {
+            localPlayer.x = 300; localPlayer.y = 450;
+          }
+          playDoorSFX();
+          updatePlayerList();
+          broadcast({ type: 'move', player: localPlayer, vehicles });
+          return;
+        }
+      }
     }
 
     function checkWallCollision(newX, newY, radius) {
@@ -389,7 +483,11 @@
         if (v && v.type === 'plane') return false;
       }
 
-      for (let s of solids) {
+      let activeSolids = (localPlayer.location === 'world') 
+        ? outdoorSolids 
+        : (houseInteriors[localPlayer.location] ? houseInteriors[localPlayer.location].solids : []);
+
+      for (let s of activeSolids) {
         let closestX = Math.max(s.x, Math.min(newX, s.x + s.w));
         let closestY = Math.max(s.y, Math.min(newY, s.y + s.h));
         if (Math.hypot(newX - closestX, newY - closestY) < radius) return true;
@@ -434,30 +532,59 @@
     function drawWorld() {
       ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff'; ctx.lineWidth = 2;
 
-      ctx.strokeStyle = '#444';
-      ctx.lineWidth = 60;
-      ctx.beginPath();
+      ctx.strokeStyle = '#444'; ctx.lineWidth = 60; ctx.beginPath();
       ctx.moveTo(0, 500); ctx.lineTo(WORLD_WIDTH, 500);
       ctx.moveTo(800, 0); ctx.lineTo(800, WORLD_HEIGHT);
       ctx.moveTo(1600, 0); ctx.lineTo(1600, WORLD_HEIGHT);
       ctx.stroke();
 
-      ctx.fillStyle = '#222';
-      ctx.fillRect(800, 1150, 900, 100);
-      ctx.fillStyle = '#fff'; ctx.font = '12px monospace';
-      ctx.fillText("AIRSTRIP", 1200, 1205);
+      ctx.fillStyle = '#222'; ctx.fillRect(800, 1150, 900, 100);
+      ctx.fillStyle = '#fff'; ctx.font = '12px monospace'; ctx.fillText("AIRSTRIP", 1200, 1205);
 
       ctx.lineWidth = 2; ctx.strokeStyle = '#fff';
       houses.forEach(h => {
         ctx.strokeRect(h.x, h.y, h.w, h.h);
-        ctx.fillText(h.id, h.x + 20, h.y + 30);
+        ctx.fillText(h.name, h.x + 40, h.y + 30);
         ctx.clearRect(h.doorX - 20, h.doorY - 10, 40, 10);
+        
+        ctx.strokeStyle = '#0f0';
+        ctx.strokeRect(h.doorX - 15, h.doorY - 8, 30, 8);
+        ctx.strokeStyle = '#fff';
       });
 
       vehicles.forEach(v => {
         ctx.font = '24px monospace'; ctx.textAlign = 'center';
         ctx.fillText(v.icon, v.x, v.y);
       });
+    }
+
+    function drawHouseInterior(loc) {
+      let room = houseInteriors[loc];
+      if (!room) return;
+
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
+      ctx.strokeRect(0, 0, room.w, room.h);
+
+      ctx.fillStyle = '#ff0000';
+      ctx.fillRect(room.doorX - 25, room.doorY, 50, 10);
+      ctx.fillStyle = '#fff'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+      ctx.fillText("EXIT (E)", room.doorX, room.doorY - 5);
+
+      ctx.font = '14px monospace';
+      ctx.fillText(room.name, room.w / 2, 40);
+
+      ctx.lineWidth = 2;
+      if (loc === 'house_1') {
+        ctx.strokeStyle = '#555'; ctx.strokeRect(150, 180, 300, 180);
+        ctx.strokeStyle = '#fff'; ctx.strokeRect(100, 80, 140, 60);
+        ctx.fillText("🛋️ Couch", 170, 115);
+      } else if (loc === 'house_2') {
+        ctx.strokeRect(220, 150, 160, 100);
+        ctx.fillText("🍽️ Table", 300, 205);
+      } else if (loc === 'house_3') {
+        ctx.strokeRect(400, 80, 120, 180);
+        ctx.fillText("🍸 Bar", 460, 170);
+      }
     }
 
     function drawAvatar(p) {
@@ -501,17 +628,29 @@
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
       ctx.save();
-      let camX = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, localPlayer.x - canvas.width / 2));
-      let camY = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, localPlayer.y - canvas.height / 2));
-      ctx.translate(-camX, -camY);
 
-      drawWorld();
+      if (localPlayer.location === 'world') {
+        let camX = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, localPlayer.x - canvas.width / 2));
+        let camY = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, localPlayer.y - canvas.height / 2));
+        ctx.translate(-camX, -camY);
+
+        drawWorld();
+      } else {
+        let room = houseInteriors[localPlayer.location];
+        let offX = (canvas.width - room.w) / 2;
+        let offY = (canvas.height - room.h) / 2;
+        ctx.translate(offX, offY);
+
+        drawHouseInterior(localPlayer.location);
+      }
       
       drawAvatar(localPlayer);
+
       for (let id in players) {
-        if (id !== localPlayer.id) drawAvatar(players[id]);
+        if (id !== localPlayer.id && players[id].location === localPlayer.location) {
+          drawAvatar(players[id]);
+        }
       }
 
       ctx.restore();
