@@ -1,212 +1,154 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Friends Neighborhood - Fixed Login</title>
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
-    body, html { width: 100%; height: 100%; overflow: hidden; background: #0a0a10; color: #fff; }
-    
-    #setup-modal {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(10, 10, 16, 0.95); display: flex; justify-content: center; align-items: center; z-index: 1000;
-    }
-    .modal-box {
-      background: #181824; border: 2px solid #3b3b54; padding: 30px; border-radius: 12px;
-      width: 340px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-    }
-    .modal-box h2 { margin-bottom: 20px; color: #00d2ff; letter-spacing: 1px; }
-    .input-group { margin-bottom: 15px; text-align: left; }
-    .input-group label { display: block; font-size: 12px; color: #8888aa; margin-bottom: 5px; }
-    .input-group input {
-      width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #3b3b54;
-      background: #0f0f18; color: #fff; font-size: 14px; outline: none;
-    }
-    .avatar-select { display: flex; gap: 10px; margin-bottom: 20px; }
-    .opt-btn {
-      flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #3b3b54;
-      background: #222235; color: #fff; cursor: pointer; transition: 0.2s;
-    }
-    .opt-btn.selected { border-color: #00d2ff; background: #00d2ff22; color: #00d2ff; font-weight: bold; }
-    .color-picker { display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; }
-    .color-swatch { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
-    .color-swatch.selected { border-color: #fff; transform: scale(1.15); }
-    
-    .btn-primary {
-      width: 100%; padding: 12px; border: none; border-radius: 6px;
-      background: #00d2ff; color: #000; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.2s;
-    }
-    .btn-primary:hover { background: #00b8e6; }
+.canvas-wrapper { position: relative; width: 100%; padding-top: 75%; }
+canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; border: 2px solid #fff; background: #000; display: block; }
 
-    #game-container { display: none; width: 100%; height: 100%; position: relative; }
-    canvas { display: block; width: 100%; height: 100%; background: #112211; }
-    
-    #ui-layer { position: absolute; top: 10px; left: 10px; display: flex; gap: 10px; }
-    .tag { background: rgba(0,0,0,0.6); padding: 6px 12px; border-radius: 4px; border: 1px solid #333; font-size: 12px; }
-  </style>
-</head>
-<body>
+    /* Contenedor de Notificaciones Flotantes */
+#notification-container {
+position: absolute;
+top: 15px;
+@@ -81,7 +80,6 @@
+.emote-btn { background: #111; border: 1px solid #fff; padding: 4px 8px; cursor: pointer; font-size: 12px; color: #fff; }
+.emote-btn:active { background: #fff; color: #000; }
 
-  <!-- MODAL DE LOGIN -->
-  <div id="setup-modal">
-    <div class="modal-box">
-      <h2>ENTER NEIGHBORHOOD</h2>
-      <div class="input-group">
-        <label>USERNAME</label>
-        <input type="text" id="username-input" placeholder="Enter your name..." maxlength="12">
-      </div>
-      <div class="input-group">
-        <label>WORLD ROOM CODE</label>
-        <input type="text" id="world-id-input" placeholder="main-town" value="main-town" maxlength="15">
-      </div>
-      <div class="input-group">
-        <label>CHOOSE AVATAR</label>
-        <div class="avatar-select">
-          <button class="opt-btn selected" id="btn-martin" onclick="selectAvatar('martin')">Martin</button>
-          <button class="opt-btn" id="btn-gaby" onclick="selectAvatar('gaby')">Gaby</button>
-          <button class="opt-btn" id="btn-facu" onclick="selectAvatar('facu')">Facu</button>
-        </div>
-      </div>
-      <div class="input-group">
-        <label>SHIRT COLOR</label>
-        <div class="color-picker">
-          <div class="color-swatch selected" style="background:#ffffff;" onclick="selectColor('#ffffff', this)"></div>
-          <div class="color-swatch" style="background:#ff4444;" onclick="selectColor('#ff4444', this)"></div>
-          <div class="color-swatch" style="background:#44ff44;" onclick="selectColor('#44ff44', this)"></div>
-          <div class="color-swatch" style="background:#4488ff;" onclick="selectColor('#4488ff', this)"></div>
-          <div class="color-swatch" style="background:#ffcc00;" onclick="selectColor('#ffcc00', this)"></div>
-        </div>
-      </div>
-      <button class="btn-primary" onclick="enterHouse()">ENTER WORLD</button>
-    </div>
-  </div>
+    /* Ventanas Modales: Tienda e Inventario */
+.game-modal {
+display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+width: 280px; background: rgba(0, 0, 0, 0.95); border: 2px solid #fff; padding: 12px; z-index: 5;
+@@ -132,7 +130,7 @@ <h2 style="margin-bottom: 8px;">NEIGHBORHOOD</h2>
+</div>
 
-  <!-- JUEGO Y CANVAS -->
-  <div id="game-container">
-    <div id="ui-layer">
-      <div class="tag" id="status-tag">OFFLINE</div>
-      <div class="tag" id="display-room-code">MAIN-TOWN</div>
-      <div class="tag" id="coins-tag">💰 COINS: $100</div>
-    </div>
-    <canvas id="gameCanvas"></canvas>
-  </div>
+<button class="start" onclick="enterHouse()">ENTER WORLD</button>
+      <div id="version-tag">Build: v1.7.0 (Economy, Shop & Toast System)</div>
+      <div id="version-tag">Build: v1.7.1 (Isolated Inventory & Toast Fix)</div>
+</div>
+</div>
 
-  <script>
-    let canvas, ctx;
-    let selectedAvatar = 'martin';
-    let selectedColor = '#ffffff';
-    let activeWorldRoom = 'main-town';
-    let audioCtx = null;
+@@ -172,7 +170,6 @@ <h2 style="margin-bottom: 8px;">NEIGHBORHOOD</h2>
+<button class="emote-btn" onclick="sendEmote('❤️')">❤️</button>
+</div>
 
-    let localPlayer = {
-      id: '', name: '', avatar: 'martin', color: '#ffffff',
-      x: 400, y: 300, speed: 4, radius: 12, coins: 100, inventory: []
-    };
+      <!-- Ventana Modal de Tienda -->
+<div id="shop-modal" class="game-modal">
+<div class="game-modal-header">
+<span>TOWN SHOP 🛒</span>
+@@ -181,7 +178,6 @@ <h2 style="margin-bottom: 8px;">NEIGHBORHOOD</h2>
+<div id="shop-item-list" class="item-list"></div>
+</div>
 
-    window.addEventListener('DOMContentLoaded', () => {
-      canvas = document.getElementById('gameCanvas');
-      if (canvas) {
-        ctx = canvas.getContext('2d');
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
+      <!-- Ventana Modal de Inventario -->
+<div id="inventory-modal" class="game-modal">
+<div class="game-modal-header">
+<span>MY INVENTORY 🎒</span>
+@@ -205,15 +201,14 @@ <h2 style="margin-bottom: 8px;">NEIGHBORHOOD</h2>
+</div>
+
+<script>
+    const GAME_VERSION = "1.7.0";
+    const GAME_VERSION = "1.7.1";
+const PLAYER_TIMEOUT_MS = 5 * 60 * 1000;
+let activeWorldRoom = "main-town";
+
+let selectedAvatar = 'martin';
+let selectedColor = '#ffffff';
+let heartbeatInterval = null;
+
+    // Catálogo de la Tienda
+const SHOP_CATALOG = [
+{ id: 'plant1', name: '🪴 House Plant', price: 30, type: 'furniture' },
+{ id: 'tv1', name: '📺 Plasma TV', price: 80, type: 'furniture' },
+@@ -308,7 +303,6 @@ <h2 style="margin-bottom: 8px;">NEIGHBORHOOD</h2>
+let isHost = false;
+let animFrame = 0;
+
+    // Monedas flotantes en el mapa público
+let mapCoins = [
+{ id: 'c1', x: 600, y: 550, active: true },
+{ id: 'c2', x: 1300, y: 550, active: true },
+@@ -364,8 +358,10 @@ <h2 style="margin-bottom: 8px;">NEIGHBORHOOD</h2>
+
+function updateCoinsDisplay() {
+document.getElementById('coins-tag').innerText = `💰 COINS: $${localPlayer.coins}`;
+      localStorage.setItem('nh_coins', localPlayer.coins);
+      localStorage.setItem('nh_inventory', JSON.stringify(localPlayer.inventory));
+      if (localPlayer.name) {
+        localStorage.setItem(`nh_coins_${localPlayer.name}`, localPlayer.coins);
+        localStorage.setItem(`nh_inventory_${localPlayer.name}`, JSON.stringify(localPlayer.inventory));
+      }
+}
+
+function toggleShop() {
+@@ -476,12 +472,25 @@ <h2 style="margin-bottom: 8px;">NEIGHBORHOOD</h2>
+localPlayer.x = 400;
+localPlayer.y = 450;
+
+      const savedCoins = localStorage.getItem('nh_coins');
+      if (savedCoins) localPlayer.coins = parseInt(savedCoins, 10);
+      const savedInv = localStorage.getItem('nh_inventory');
+      // Carga aislada de monedas e inventario por usuario específico
+      const savedCoins = localStorage.getItem(`nh_coins_${localPlayer.name}`);
+      if (savedCoins !== null) {
+        localPlayer.coins = parseInt(savedCoins, 10);
+      } else {
+        localPlayer.coins = 100;
       }
 
-      // Cargar persistencia si existe
-      const savedName = localStorage.getItem('nh_name');
-      if (savedName) document.getElementById('username-input').value = savedName;
-    });
+      const savedInv = localStorage.getItem(`nh_inventory_${localPlayer.name}`);
+if (savedInv) {
+        try { localPlayer.inventory = JSON.parse(savedInv); } catch(e){}
+        try { 
+          localPlayer.inventory = JSON.parse(savedInv); 
+        } catch(e) { 
+          localPlayer.inventory = []; 
+        }
+      } else {
+        localPlayer.inventory = [];
+}
 
-    function resizeCanvas() {
-      if (canvas) {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-      }
-    }
+updateCoinsDisplay();
 
-    function selectAvatar(type) {
-      selectedAvatar = type;
-      document.querySelectorAll('.opt-btn').forEach(btn => btn.classList.remove('selected'));
-      const btn = document.getElementById(`btn-${type}`);
-      if (btn) btn.classList.add('selected');
-    }
+localStorage.setItem('nh_name', localPlayer.name);
+@@ -573,6 +582,7 @@ <h2 style="margin-bottom: 8px;">NEIGHBORHOOD</h2>
+}
+} else if (data.type === 'sync' || data.type === 'move') {
+data.player.lastSeen = Date.now();
+          // Guardamos estrictamente en la lista de otros usuarios remotos
+players[data.player.id] = data.player;
+if (data.vehicles) vehicles = data.vehicles;
 
-    function selectColor(hex, el) {
-      selectedColor = hex;
-      document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
-      el.classList.add('selected');
-    }
+@@ -834,7 +844,6 @@ <h2 style="margin-bottom: 8px;">NEIGHBORHOOD</h2>
+}
+});
 
-    function initAudio() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-    }
+      // Monedas flotantes
+mapCoins.forEach(coin => {
+if (coin.active) {
+ctx.font = '16px monospace'; ctx.textAlign = 'center';
+@@ -865,7 +874,6 @@ <h2 style="margin-bottom: 8px;">NEIGHBORHOOD</h2>
+let bobY = (p.isMoving && !p.vehicle) ? Math.sin(animFrame * 0.3) * 3 : 0;
+let renderY = p.y + bobY;
 
-    function enterHouse() {
-      try {
-        initAudio();
-      } catch (e) {
-        console.warn("Audio Context error:", e);
-      }
+      // 1. DIBUJAR CUERPO Y CABEZA
+if (!p.vehicle) {
+ctx.beginPath();
+if (p.avatar === 'martin') {
+@@ -887,13 +895,11 @@ <h2 style="margin-bottom: 8px;">NEIGHBORHOOD</h2>
+}
+}
 
-      const customName = document.getElementById('username-input').value.trim();
-      activeWorldRoom = document.getElementById('world-id-input').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || "main-town";
-      
-      const finalName = customName || (selectedAvatar.charAt(0).toUpperCase() + selectedAvatar.slice(1));
-      
-      // Asignación de datos al usuario
-      localPlayer.id = Math.random().toString(36).substring(2, 7);
-      localPlayer.name = finalName;
-      localPlayer.avatar = selectedAvatar;
-      localPlayer.color = selectedColor;
+      // 2. DIBUJAR NOMBRE (ABAJO del personaje)
+ctx.fillStyle = '#ffffff';
+ctx.font = '11px monospace'; 
+ctx.textAlign = 'center';
+ctx.fillText(p.name, p.x, renderY + 26);
 
-      // Guardar en localStorage
-      localStorage.setItem('nh_name', localPlayer.name);
-      localStorage.setItem('nh_avatar', selectedAvatar);
-      localStorage.setItem('nh_color', selectedColor);
-      localStorage.setItem('nh_room', activeWorldRoom);
+      // 3. DIBUJAR GLOBO DE CHAT (ARRIBA del personaje)
+if (p.bubble && Date.now() < p.bubble.timer) {
+const maxLen = 14;
+let displayMsg = p.bubble.text;
+@@ -934,7 +940,6 @@ <h2 style="margin-bottom: 8px;">NEIGHBORHOOD</h2>
+ctx.fillText(displayMsg, p.x, bubbleY + 13);
+}
 
-      // Transición UI
-      document.getElementById('setup-modal').style.display = 'none';
-      document.getElementById('game-container').style.display = 'block';
-
-      document.getElementById('display-room-code').innerText = activeWorldRoom.toUpperCase();
-      document.getElementById('status-tag').innerText = "ONLINE";
-
-      // Re-asegurar tamaño canvas
-      resizeCanvas();
-
-      // Iniciar Game Loop
-      requestAnimationFrame(gameLoop);
-    }
-
-    function gameLoop() {
-      if (!ctx) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Fondo
-      ctx.fillStyle = '#112211';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Dibujar jugador
-      ctx.fillStyle = localPlayer.color;
-      ctx.beginPath();
-      ctx.arc(canvas.width / 2, canvas.height / 2, localPlayer.radius, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Etiqueta Nombre
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '12px Segoe UI';
-      ctx.textAlign = 'center';
-      ctx.fillText(localPlayer.name, canvas.width / 2, (canvas.height / 2) - 18);
-
-      requestAnimationFrame(gameLoop);
-    }
-  </script>
-</body>
-</html>
+      // 4. DIBUJAR EMOTE
+if (p.emote && Date.now() < p.emote.timer) {
+ctx.font = '16px monospace'; 
+ctx.textAlign = 'center';
