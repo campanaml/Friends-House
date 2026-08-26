@@ -85,7 +85,7 @@
       </div>
 
       <button class="start" onclick="enterHouse()">ENTER WORLD</button>
-      <div id="version-tag">Build: v1.6.0 (Rollback Restored)</div>
+      <div id="version-tag">Build: v1.6.1 (Auto-Disconnect Cleaned)</div>
     </div>
   </div>
 
@@ -137,13 +137,13 @@
   </div>
 
   <script>
-    const GAME_VERSION = "1.6.0";
+    const GAME_VERSION = "1.6.1";
     let activeWorldRoom = "main-town";
 
     let selectedAvatar = 'martin';
     let selectedColor = '#ffffff';
 
-    // Auto-load saved player name and settings
+    // Auto-load saved settings
     window.addEventListener('load', () => {
       const savedName = localStorage.getItem('nh_name');
       const savedAvatar = localStorage.getItem('nh_avatar');
@@ -165,10 +165,19 @@
       }
     });
 
+    // Handle immediate graceful disconnect on tab close/reload
+    window.addEventListener('beforeunload', () => {
+      if (localPlayer.id) {
+        broadcast({ type: 'leave', id: localPlayer.id });
+      }
+      if (peer) peer.destroy();
+    });
+
     function selectAvatar(type) {
       selectedAvatar = type;
       document.querySelectorAll('.opt-btn').forEach(btn => btn.classList.remove('selected'));
-      document.getElementById(`btn-${type}`).classList.add('selected');
+      let btn = document.getElementById(`btn-${type}`);
+      if (btn) btn.classList.add('selected');
     }
 
     function selectColor(colorHex, el) {
@@ -364,7 +373,18 @@
       });
 
       conn.on('data', (data) => {
-        if (data.type === 'sync' || data.type === 'move') {
+        if (data.type === 'leave') {
+          // Immediately purge leaving avatar
+          delete players[data.id];
+          updatePlayerList();
+
+          if (isHost) {
+            for (let pId in connections) {
+              if (pId !== conn.peer && connections[pId].open) connections[pId].send(data);
+            }
+          }
+        } else if (data.type === 'sync' || data.type === 'move') {
+          data.player.lastSeen = Date.now(); // Timestamp heartbeat update
           players[data.player.id] = data.player;
           if (data.vehicles) vehicles = data.vehicles;
           
@@ -416,6 +436,21 @@
       for (let peerId in connections) {
         if (connections[peerId].open) connections[peerId].send(data);
       }
+    }
+
+    function cleanupGhostPlayers() {
+      const now = Date.now();
+      let changed = false;
+      for (let id in players) {
+        if (id !== localPlayer.id) {
+          // Remove players who haven't sent state in over 4 seconds
+          if (players[id].lastSeen && now - players[id].lastSeen > 4000) {
+            delete players[id];
+            changed = true;
+          }
+        }
+      }
+      if (changed) updatePlayerList();
     }
 
     function updatePlayerList() {
@@ -526,6 +561,8 @@
 
     function update() {
       animFrame++;
+      cleanupGhostPlayers();
+
       let currentSpeed = localPlayer.speed;
 
       if (localPlayer.vehicle) {
@@ -553,7 +590,7 @@
         playFootstepSFX();
       }
 
-      if (localPlayer.isMoving && Object.keys(connections).length > 0) {
+      if ((localPlayer.isMoving || animFrame % 60 === 0) && Object.keys(connections).length > 0) {
         broadcast({ type: 'move', player: localPlayer, vehicles });
       }
     }
