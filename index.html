@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Friends House - Fixed Edition</title>
+  <title>Friends Neighborhood - World Edition</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; touch-action: manipulation; }
@@ -22,6 +22,8 @@
     .color-swatch { width: 22px; height: 22px; border-radius: 50%; border: 1px solid #fff; display: inline-block; cursor: pointer; }
     .color-swatch.selected { outline: 2px solid #fff; outline-offset: 2px; }
     button.start { padding: 12px; background: #fff; color: #000; border: none; font-weight: bold; cursor: pointer; width: 100%; font-size: 14px; margin-top: 10px; }
+
+    #version-tag { font-size: 10px; color: #888; margin-top: 8px; }
 
     #game-container { position: relative; display: none; width: 100vw; max-width: 800px; margin: 0 auto; }
     .canvas-wrapper { position: relative; width: 100%; padding-top: 75%; }
@@ -42,15 +44,18 @@
     #dpad { display: grid; grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(3, 42px); gap: 4px; user-select: none; }
     .dbtn { background: #111; border: 1px solid #fff; color: #fff; font-size: 16px; font-weight: bold; display: flex; justify-content: center; align-items: center; border-radius: 4px; cursor: pointer; }
     .dbtn:active { background: #fff; color: #000; }
-    #action-btn { width: 80px; height: 80px; background: #111; border: 2px solid #fff; color: #fff; font-size: 12px; font-weight: bold; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; user-select: none; text-align: center; }
+    
+    .action-group { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+    #action-btn { width: 80px; height: 60px; background: #111; border: 2px solid #fff; color: #fff; font-size: 12px; font-weight: bold; border-radius: 8px; display: flex; justify-content: center; align-items: center; cursor: pointer; user-select: none; text-align: center; }
     #action-btn:active { background: #fff; color: #000; }
+    #reset-btn { background: #222; border: 1px solid #888; color: #aaa; font-size: 9px; padding: 4px 8px; cursor: pointer; border-radius: 4px; }
   </style>
 </head>
 <body>
 
   <div id="setup-modal">
     <div class="card">
-      <h2 style="margin-bottom: 8px;">FRIENDS HOUSE</h2>
+      <h2 style="margin-bottom: 8px;">FRIENDS NEIGHBORHOOD</h2>
       <input type="text" id="username" placeholder="Your Name..." maxlength="12" />
       
       <p style="font-size: 10px; margin-top: 6px;">SELECT AVATAR:</p>
@@ -70,7 +75,8 @@
       </div>
 
       <input type="text" id="room-code" placeholder="Room Code (Blank to Host)" maxlength="8" />
-      <button class="start" onclick="enterHouse()">ENTER APARTMENT</button>
+      <button class="start" onclick="enterHouse()">ENTER WORLD</button>
+      <div id="version-tag">Build: v1.1.0 (Neighborhood + Vehicles)</div>
     </div>
   </div>
 
@@ -81,10 +87,11 @@
       <div id="room-info">
         <div>ROOM: <span id="display-room-code" style="font-weight:bold;">---</span></div>
         <div id="status-tag" style="font-size: 9px; color: #0f0; margin-top:2px;">Connecting...</div>
+        <div style="font-size: 8px; color: #888; margin-top:2px;">v1.1.0</div>
       </div>
 
       <div id="player-list">
-        <div style="font-weight:bold; border-bottom:1px solid #fff; margin-bottom:4px;">PLAYERS</div>
+        <div style="font-weight:bold; border-bottom:1px solid #fff; margin-bottom:4px;">NEIGHBORS</div>
         <div id="player-names"></div>
       </div>
 
@@ -107,11 +114,16 @@
         <div class="dbtn" id="btn-left">◀</div><div></div><div class="dbtn" id="btn-right">▶</div>
         <div></div><div class="dbtn" id="btn-down">▼</div><div></div>
       </div>
-      <div id="action-btn" onclick="triggerInteraction()">ACTION<br>(E)</div>
+      <div class="action-group">
+        <div id="action-btn" onclick="triggerInteraction()">ACTION<br>(E)</div>
+        <button id="reset-btn" onclick="resetPosition()">Reset Position</button>
+      </div>
     </div>
   </div>
 
   <script>
+    const GAME_VERSION = "1.1.0";
+
     let audioCtx = null;
     function initAudio() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -133,20 +145,22 @@
     }
 
     function playFootstepSFX() { playAudioTone(100 + Math.random()*40, 'triangle', 0.04, 0.02); }
-    function playDoorSFX() { playAudioTone(180, 'sawtooth', 0.15, 0.04); }
-    function playTVSFX() { playAudioTone(440, 'square', 0.08, 0.03); }
+    function playVehicleSFX() { playAudioTone(80 + Math.random()*20, 'sawtooth', 0.06, 0.03); }
     function playChatChime() { playAudioTone(587.33, 'sine', 0.08, 0.04); setTimeout(() => playAudioTone(880, 'sine', 0.12, 0.04), 80); }
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+
+    const WORLD_WIDTH = 2400;
+    const WORLD_HEIGHT = 1600;
 
     let selectedAvatar = 'rat';
     let selectedColor = '#ffffff';
     let isHost = false;
 
     let localPlayer = { 
-      id: '', name: '', avatar: 'rat', color: '#ffffff', x: 400, y: 250, speed: 3.5, radius: 12,
-      dir: 'down', isMoving: false, isSeated: false, drink: null, bubble: null, emote: null 
+      id: '', name: '', avatar: 'rat', color: '#ffffff', x: 300, y: 400, speed: 4, radius: 12,
+      dir: 'down', isMoving: false, vehicle: null, bubble: null, emote: null 
     };
     
     let players = {}; 
@@ -155,31 +169,33 @@
     let connections = {};
     let animFrame = 0;
 
-    let tvChannel = 0;
-    let pongState = { p1Y: 50, p2Y: 50, ballX: 40, ballY: 50, vx: 1.5, vy: 1 };
-    
-    let movableFurniture = [
-      { id: 'table', x: 380, y: 150, w: 120, h: 60, label: "TABLE" },
-      { id: 'couch', x: 310, y: 60, w: 35, h: 70, label: "COUCH" }
+    const houses = [
+      { id: 'House 1', x: 100, y: 100, w: 400, h: 300, doorX: 300, doorY: 400 },
+      { id: 'House 2', x: 1000, y: 100, w: 400, h: 300, doorX: 1200, doorY: 400 },
+      { id: 'House 3', x: 1800, y: 100, w: 400, h: 300, doorX: 2000, doorY: 400 }
     ];
 
-    let doors = [
-      { id: 1, x: 200, y: 360, w: 40, h: 10, isOpen: false },
-      { id: 2, x: 460, y: 360, w: 40, h: 10, isOpen: false },
-      { id: 3, x: 720, y: 360, w: 40, h: 10, isOpen: false }
+    let vehicles = [
+      { id: 'car1', type: 'car', icon: '🚗', x: 550, y: 450, w: 40, h: 40, driver: null, speed: 8 },
+      { id: 'bike1', type: 'bike', icon: '🛵', x: 1450, y: 450, w: 30, h: 30, driver: null, speed: 10 },
+      { id: 'plane1', type: 'plane', icon: '✈️', x: 1200, y: 1200, w: 60, h: 60, driver: null, speed: 13 }
     ];
 
     const solids = [
-      { x: 0, y: 0, w: 800, h: 12 }, { x: 0, y: 588, w: 800, h: 12 },
-      { x: 0, y: 0, w: 12, h: 600 }, { x: 788, y: 0, w: 12, h: 600 },
-      { x: 12, y: 360, w: 188, h: 10 }, { x: 240, y: 360, w: 220, h: 10 },
-      { x: 500, y: 360, w: 220, h: 10 }, { x: 760, y: 360, w: 28, h: 10 },
-      { x: 270, y: 370, w: 8, h: 220 }, { x: 530, y: 370, w: 8, h: 220 },
-      { x: 640, y: 20, w: 130, h: 80 }
+      { x: 0, y: 0, w: WORLD_WIDTH, h: 10 },
+      { x: 0, y: WORLD_HEIGHT - 10, w: WORLD_WIDTH, h: 10 },
+      { x: 0, y: 0, w: 10, h: WORLD_HEIGHT },
+      { x: WORLD_WIDTH - 10, y: 0, w: 10, h: WORLD_HEIGHT },
+      // House 1
+      { x: 100, y: 100, w: 400, h: 10 }, { x: 100, y: 100, w: 10, h: 300 }, { x: 490, y: 100, w: 10, h: 300 },
+      { x: 100, y: 390, w: 170, h: 10 }, { x: 330, y: 390, w: 170, h: 10 },
+      // House 2
+      { x: 1000, y: 100, w: 400, h: 10 }, { x: 1000, y: 100, w: 10, h: 300 }, { x: 1390, y: 100, w: 10, h: 300 },
+      { x: 1000, y: 390, w: 170, h: 10 }, { x: 1230, y: 390, w: 170, h: 10 },
+      // House 3
+      { x: 1800, y: 100, w: 400, h: 10 }, { x: 1800, y: 100, w: 10, h: 300 }, { x: 2190, y: 100, w: 10, h: 300 },
+      { x: 1800, y: 390, w: 170, h: 10 }, { x: 2030, y: 390, w: 170, h: 10 }
     ];
-
-    let draggedItem = null;
-    let dragOffset = { x: 0, y: 0 };
 
     function selectAvatar(type, el) {
       selectedAvatar = type;
@@ -199,6 +215,17 @@
       return temp.innerHTML;
     }
 
+    function resetPosition() {
+      if (localPlayer.vehicle) {
+        let v = vehicles.find(item => item.id === localPlayer.vehicle);
+        if (v) v.driver = null;
+        localPlayer.vehicle = null;
+      }
+      localPlayer.x = 300;
+      localPlayer.y = 400;
+      broadcast({ type: 'move', player: localPlayer, vehicles });
+    }
+
     function enterHouse() {
       initAudio();
       const rawName = document.getElementById('username').value.trim();
@@ -215,19 +242,8 @@
       document.getElementById('game-container').style.display = 'block';
 
       setupMobileControls();
-      setupMouseDrag();
       initMultiplayer(targetRoom);
       requestAnimationFrame(gameLoop);
-    }
-
-    function getCanvasPointerPos(e) {
-      const rect = canvas.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      return {
-        x: (clientX - rect.left) * (canvas.width / rect.width),
-        y: (clientY - rect.top) * (canvas.height / rect.height)
-      };
     }
 
     function setupMobileControls() {
@@ -242,39 +258,6 @@
       };
       bindTouch('btn-up', 'ArrowUp'); bindTouch('btn-down', 'ArrowDown');
       bindTouch('btn-left', 'ArrowLeft'); bindTouch('btn-right', 'ArrowRight');
-    }
-
-    function setupMouseDrag() {
-      const handleStart = (e) => {
-        if (!isHost) return;
-        const pos = getCanvasPointerPos(e);
-        movableFurniture.forEach(f => {
-          if (pos.x >= f.x && pos.x <= f.x + f.w && pos.y >= f.y && pos.y <= f.y + f.h) {
-            draggedItem = f;
-            dragOffset.x = pos.x - f.x;
-            dragOffset.y = pos.y - f.y;
-          }
-        });
-      };
-
-      const handleMove = (e) => {
-        if (draggedItem) {
-          const pos = getCanvasPointerPos(e);
-          draggedItem.x = Math.max(12, Math.min(788 - draggedItem.w, pos.x - dragOffset.x));
-          draggedItem.y = Math.max(12, Math.min(588 - draggedItem.h, pos.y - dragOffset.y));
-          broadcast({ type: 'furniture', furniture: movableFurniture });
-        }
-      };
-
-      const handleEnd = () => draggedItem = null;
-
-      canvas.addEventListener('mousedown', handleStart);
-      canvas.addEventListener('mousemove', handleMove);
-      window.addEventListener('mouseup', handleEnd);
-      
-      canvas.addEventListener('touchstart', handleStart, { passive: true });
-      canvas.addEventListener('touchmove', handleMove, { passive: true });
-      window.addEventListener('touchend', handleEnd);
     }
 
     function initMultiplayer(targetRoom) {
@@ -295,33 +278,29 @@
     function bindConnectionEvents(conn) {
       conn.on('open', () => {
         connections[conn.peer] = conn;
-        conn.send({ type: 'sync', player: localPlayer, tvChannel, doors, furniture: movableFurniture });
+        // Broadcast local player state and vehicle array immediately on handshake
+        conn.send({ type: 'sync', player: localPlayer, vehicles, version: GAME_VERSION });
       });
 
       conn.on('data', (data) => {
         if (data.type === 'sync' || data.type === 'move') {
           players[data.player.id] = data.player;
-          if (data.tvChannel !== undefined) tvChannel = data.tvChannel;
-          if (data.doors) doors = data.doors;
-          if (data.furniture) movableFurniture = data.furniture;
-          if (data.type === 'sync') conn.send({ type: 'move', player: localPlayer, tvChannel, doors, furniture: movableFurniture });
+          if (data.vehicles) vehicles = data.vehicles;
+          if (data.type === 'sync') {
+            conn.send({ type: 'move', player: localPlayer, vehicles, version: GAME_VERSION });
+          }
         } else if (data.type === 'chat') {
           let dist = Math.hypot(localPlayer.x - data.x, localPlayer.y - data.y);
-          let isNear = dist < 250;
-          let text = isNear ? data.message : "...[muffled chat]...";
+          let isNear = dist < 400;
+          let text = isNear ? data.message : "...[distant chat]...";
           
           addChatMessage(data.name, text);
           if (players[data.id] && isNear) setSpeechBubble(players[data.id], data.message);
           playChatChime();
         } else if (data.type === 'emote') {
           if (players[data.id]) setEmote(players[data.id], data.emote);
-        } else if (data.type === 'interact') {
-          tvChannel = data.tvChannel;
-          doors = data.doors;
-        } else if (data.type === 'furniture') {
-          movableFurniture = data.furniture;
-        } else if (data.type === 'pong') {
-          pongState = data.pongState;
+        } else if (data.type === 'vehicles') {
+          vehicles = data.vehicles;
         }
         updatePlayerList();
       });
@@ -383,149 +362,102 @@
     }
 
     function triggerInteraction() {
-      let couch = movableFurniture.find(f => f.id === 'couch');
-      if (couch && Math.hypot(localPlayer.x - (couch.x + couch.w/2), localPlayer.y - (couch.y + couch.h/2)) < 40) {
-        localPlayer.isSeated = !localPlayer.isSeated;
-        if (localPlayer.isSeated) { localPlayer.x = couch.x + 15; localPlayer.y = couch.y + 35; }
-        broadcast({ type: 'move', player: localPlayer, tvChannel, doors });
-      } 
-      else if (Math.hypot(localPlayer.x - 275, localPlayer.y - 100) < 45) {
-        tvChannel = (tvChannel + 1) % 3;
-        playTVSFX();
-        broadcast({ type: 'interact', tvChannel, doors });
-      } 
-      else if (Math.hypot(localPlayer.x - 730, localPlayer.y - 65) < 45) {
-        const drinks = ['🥤', '🧃', '☕', '🍺'];
-        localPlayer.drink = drinks[Math.floor(Math.random() * drinks.length)];
-        broadcast({ type: 'move', player: localPlayer, tvChannel, doors });
-      } 
-      else {
-        doors.forEach(d => {
-          if (Math.hypot(localPlayer.x - (d.x + d.w/2), localPlayer.y - d.y) < 35) {
-            d.isOpen = !d.isOpen;
-            playDoorSFX();
-            broadcast({ type: 'interact', tvChannel, doors });
-          }
-        });
+      if (localPlayer.vehicle) {
+        let v = vehicles.find(item => item.id === localPlayer.vehicle);
+        if (v) {
+          v.driver = null;
+          localPlayer.x = v.x + 40;
+          localPlayer.y = v.y + 40;
+        }
+        localPlayer.vehicle = null;
+        broadcast({ type: 'move', player: localPlayer, vehicles });
+        return;
       }
+
+      vehicles.forEach(v => {
+        if (!v.driver && Math.hypot(localPlayer.x - v.x, localPlayer.y - v.y) < 50) {
+          v.driver = localPlayer.id;
+          localPlayer.vehicle = v.id;
+        }
+      });
+      broadcast({ type: 'move', player: localPlayer, vehicles });
     }
 
     function checkWallCollision(newX, newY, radius) {
+      if (localPlayer.vehicle) {
+        let v = vehicles.find(item => item.id === localPlayer.vehicle);
+        if (v && v.type === 'plane') return false;
+      }
+
       for (let s of solids) {
         let closestX = Math.max(s.x, Math.min(newX, s.x + s.w));
         let closestY = Math.max(s.y, Math.min(newY, s.y + s.h));
         if (Math.hypot(newX - closestX, newY - closestY) < radius) return true;
       }
-      for (let f of movableFurniture) {
-        let closestX = Math.max(f.x, Math.min(newX, f.x + f.w));
-        let closestY = Math.max(f.y, Math.min(newY, f.y + f.h));
-        if (Math.hypot(newX - closestX, newY - closestY) < radius) return true;
-      }
-      for (let d of doors) {
-        if (!d.isOpen) {
-          let closestX = Math.max(d.x, Math.min(newX, d.x + d.w));
-          let closestY = Math.max(d.y, Math.min(newY, d.y + d.h));
-          if (Math.hypot(newX - closestX, newY - closestY) < radius) return true;
-        }
-      }
       return false;
-    }
-
-    function resolvePlayerOverlaps() {
-      if (localPlayer.isSeated) return;
-      for (let id in players) {
-        let p = players[id];
-        if (id === localPlayer.id || p.isSeated) continue;
-        let dx = localPlayer.x - p.x; let dy = localPlayer.y - p.y;
-        let dist = Math.hypot(dx, dy);
-        let minDist = localPlayer.radius + (p.radius || 12);
-
-        if (dist < minDist && dist > 0) {
-          let overlap = minDist - dist;
-          let pushX = (dx / dist) * (overlap * 0.5);
-          let pushY = (dy / dist) * (overlap * 0.5);
-          if (!checkWallCollision(localPlayer.x + pushX, localPlayer.y, localPlayer.radius)) localPlayer.x += pushX;
-          if (!checkWallCollision(localPlayer.x, localPlayer.y + pushY, localPlayer.radius)) localPlayer.y += pushY;
-        }
-      }
-    }
-
-    function updatePongGame() {
-      if (tvChannel !== 2) return;
-      if (isHost) {
-        pongState.ballX += pongState.vx;
-        pongState.ballY += pongState.vy;
-        if (pongState.ballY <= 10 || pongState.ballY >= 90) pongState.vy *= -1;
-        if (pongState.ballX <= 10 || pongState.ballX >= 90) pongState.vx *= -1;
-
-        if (Math.hypot(localPlayer.x - 275, localPlayer.y - 100) < 60) {
-          if (keys['ArrowUp'] || keys['w']) pongState.p1Y = Math.max(10, pongState.p1Y - 4);
-          if (keys['ArrowDown'] || keys['s']) pongState.p1Y = Math.min(70, pongState.p1Y + 4);
-        }
-        broadcast({ type: 'pong', pongState });
-      }
     }
 
     function update() {
       animFrame++;
+      let currentSpeed = localPlayer.speed;
+
+      if (localPlayer.vehicle) {
+        let v = vehicles.find(item => item.id === localPlayer.vehicle);
+        if (v) currentSpeed = v.speed;
+      }
+
       let nextX = localPlayer.x;
       let nextY = localPlayer.y;
       localPlayer.isMoving = false;
 
-      if (!localPlayer.isSeated) {
-        if (keys['ArrowUp'] || keys['w']) { nextY -= localPlayer.speed; localPlayer.dir = 'up'; localPlayer.isMoving = true; }
-        if (keys['ArrowDown'] || keys['s']) { nextY += localPlayer.speed; localPlayer.dir = 'down'; localPlayer.isMoving = true; }
-        if (keys['ArrowLeft'] || keys['a']) { nextX -= localPlayer.speed; localPlayer.dir = 'left'; localPlayer.isMoving = true; }
-        if (keys['ArrowRight'] || keys['d']) { nextX += localPlayer.speed; localPlayer.dir = 'right'; localPlayer.isMoving = true; }
+      if (keys['ArrowUp'] || keys['w']) { nextY -= currentSpeed; localPlayer.dir = 'up'; localPlayer.isMoving = true; }
+      if (keys['ArrowDown'] || keys['s']) { nextY += currentSpeed; localPlayer.dir = 'down'; localPlayer.isMoving = true; }
+      if (keys['ArrowLeft'] || keys['a']) { nextX -= currentSpeed; localPlayer.dir = 'left'; localPlayer.isMoving = true; }
+      if (keys['ArrowRight'] || keys['d']) { nextX += currentSpeed; localPlayer.dir = 'right'; localPlayer.isMoving = true; }
 
-        if (!checkWallCollision(nextX, localPlayer.y, localPlayer.radius)) localPlayer.x = nextX;
-        if (!checkWallCollision(localPlayer.x, nextY, localPlayer.radius)) localPlayer.y = nextY;
+      if (!checkWallCollision(nextX, localPlayer.y, localPlayer.radius)) localPlayer.x = nextX;
+      if (!checkWallCollision(localPlayer.x, nextY, localPlayer.radius)) localPlayer.y = nextY;
 
-        resolvePlayerOverlaps();
-        if (localPlayer.isMoving && animFrame % 18 === 0) playFootstepSFX();
+      if (localPlayer.vehicle) {
+        let v = vehicles.find(item => item.id === localPlayer.vehicle);
+        if (v) { v.x = localPlayer.x; v.y = localPlayer.y; }
+        if (localPlayer.isMoving && animFrame % 10 === 0) playVehicleSFX();
+      } else if (localPlayer.isMoving && animFrame % 18 === 0) {
+        playFootstepSFX();
       }
 
-      updatePongGame();
-
       if (localPlayer.isMoving && Object.keys(connections).length > 0) {
-        broadcast({ type: 'move', player: localPlayer, tvChannel, doors, furniture: movableFurniture });
+        broadcast({ type: 'move', player: localPlayer, vehicles });
       }
     }
 
-    function drawApartment() {
+    function drawWorld() {
       ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff'; ctx.lineWidth = 2;
 
-      solids.forEach(s => ctx.strokeRect(s.x, s.y, s.w, s.h));
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 60;
+      ctx.beginPath();
+      ctx.moveTo(0, 500); ctx.lineTo(WORLD_WIDTH, 500);
+      ctx.moveTo(800, 0); ctx.lineTo(800, WORLD_HEIGHT);
+      ctx.moveTo(1600, 0); ctx.lineTo(1600, WORLD_HEIGHT);
+      ctx.stroke();
 
-      doors.forEach(d => {
-        if (!d.isOpen) ctx.fillRect(d.x, d.y, d.w, d.h);
-        else ctx.strokeRect(d.x, d.y - 20, 8, 20);
+      ctx.fillStyle = '#222';
+      ctx.fillRect(800, 1150, 900, 100);
+      ctx.fillStyle = '#fff'; ctx.font = '12px monospace';
+      ctx.fillText("AIRSTRIP", 1200, 1205);
+
+      ctx.lineWidth = 2; ctx.strokeStyle = '#fff';
+      houses.forEach(h => {
+        ctx.strokeRect(h.x, h.y, h.w, h.h);
+        ctx.fillText(h.id, h.x + 20, h.y + 30);
+        ctx.clearRect(h.doorX - 20, h.doorY - 10, 40, 10);
       });
 
-      movableFurniture.forEach(f => {
-        ctx.strokeRect(f.x, f.y, f.w, f.h);
-        ctx.fillText(f.label, f.x + 6, f.y + f.h/2 + 4);
+      vehicles.forEach(v => {
+        ctx.font = '24px monospace'; ctx.textAlign = 'center';
+        ctx.fillText(v.icon, v.x, v.y);
       });
-
-      ctx.fillText("KITCHEN", 670, 50); ctx.strokeRect(730, 25, 35, 40); ctx.fillText("FRIDGE", 732, 50);
-
-      ctx.strokeRect(270, 50, 12, 100);
-      if (tvChannel === 0) {
-        ctx.fillText("TV: OFF", 240, 40);
-      } else if (tvChannel === 1) {
-        ctx.fillText("TV: STATIC", 240, 40);
-        ctx.fillRect(272, 60 + (animFrame % 60), 8, 10);
-      } else if (tvChannel === 2) {
-        ctx.fillText("TV: PONG", 240, 40);
-        ctx.fillRect(272, 50 + (pongState.p1Y * 0.8), 3, 20);
-        ctx.fillRect(279, 50 + (pongState.p2Y * 0.8), 3, 20);
-        ctx.fillRect(272 + (pongState.ballX * 0.08), 50 + (pongState.ballY * 0.8), 3, 3);
-      }
-
-      ctx.fillText("BEDROOM 1", 30, 390); ctx.fillText("BEDROOM 2", 290, 390); ctx.fillText("BEDROOM 3", 550, 390);
-      ctx.strokeRect(200, 360, 60, 60); ctx.fillText("BATH", 212, 395);
-      ctx.strokeRect(460, 360, 60, 60); ctx.fillText("BATH", 472, 395);
-      ctx.strokeRect(720, 360, 60, 60); ctx.fillText("BATH", 732, 395);
     }
 
     function drawAvatar(p) {
@@ -533,48 +465,56 @@
       ctx.strokeStyle = p.color || '#ffffff';
       ctx.lineWidth = 2;
 
-      let bobY = (p.isMoving && !p.isSeated) ? Math.sin(animFrame * 0.3) * 3 : 0;
+      let bobY = (p.isMoving && !p.vehicle) ? Math.sin(animFrame * 0.3) * 3 : 0;
       let renderY = p.y + bobY;
 
-      ctx.beginPath();
-      if (p.avatar === 'rat') {
-        ctx.arc(p.x, renderY, 12, 0, Math.PI * 2);
-        let earOffset = p.dir === 'left' ? -4 : (p.dir === 'right' ? 4 : 0);
-        ctx.arc(p.x - 8 + earOffset, renderY - 10, 5, 0, Math.PI * 2);
-        ctx.arc(p.x + 8 + earOffset, renderY - 10, 5, 0, Math.PI * 2);
-      } else if (p.avatar === 'pig') {
-        ctx.rect(p.x - 12, renderY - 12, 24, 24);
-        ctx.rect(p.x - 4, renderY - 4, 8, 8);
-      } else {
-        ctx.arc(p.x, renderY - 6, 8, 0, Math.PI * 2);
-        ctx.rect(p.x - 8, renderY + 2, 16, 16);
+      if (!p.vehicle) {
+        ctx.beginPath();
+        if (p.avatar === 'rat') {
+          ctx.arc(p.x, renderY, 12, 0, Math.PI * 2);
+          let earOffset = p.dir === 'left' ? -4 : (p.dir === 'right' ? 4 : 0);
+          ctx.arc(p.x - 8 + earOffset, renderY - 10, 5, 0, Math.PI * 2);
+          ctx.arc(p.x + 8 + earOffset, renderY - 10, 5, 0, Math.PI * 2);
+        } else if (p.avatar === 'pig') {
+          ctx.rect(p.x - 12, renderY - 12, 24, 24);
+          ctx.rect(p.x - 4, renderY - 4, 8, 8);
+        } else {
+          ctx.arc(p.x, renderY - 6, 8, 0, Math.PI * 2);
+          ctx.rect(p.x - 8, renderY + 2, 16, 16);
+        }
+        ctx.stroke();
       }
-      ctx.stroke();
-
-      if (p.isSeated) ctx.fillText("🪑", p.x + 12, renderY);
-      if (p.drink) ctx.fillText(p.drink, p.x - 18, renderY);
 
       ctx.font = '12px monospace'; ctx.textAlign = 'center';
-      ctx.fillText(p.name, p.x, renderY - 20);
+      ctx.fillText(p.name, p.x, renderY - 24);
 
       if (p.bubble && Date.now() < p.bubble.timer) {
-        ctx.fillStyle = '#fff'; ctx.fillRect(p.x - 45, renderY - 48, 90, 20);
+        ctx.fillStyle = '#fff'; ctx.fillRect(p.x - 45, renderY - 50, 90, 20);
         ctx.fillStyle = '#000'; ctx.font = '10px monospace';
-        ctx.fillText(p.bubble.text.substring(0, 12), p.x, renderY - 34);
+        ctx.fillText(p.bubble.text.substring(0, 12), p.x, renderY - 36);
       }
 
       if (p.emote && Date.now() < p.emote.timer) {
-        ctx.font = '16px monospace'; ctx.fillText(p.emote.symbol, p.x, renderY - 52);
+        ctx.font = '16px monospace'; ctx.fillText(p.emote.symbol, p.x, renderY - 54);
       }
     }
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawApartment();
+
+      ctx.save();
+      let camX = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, localPlayer.x - canvas.width / 2));
+      let camY = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, localPlayer.y - canvas.height / 2));
+      ctx.translate(-camX, -camY);
+
+      drawWorld();
+      
       drawAvatar(localPlayer);
       for (let id in players) {
         if (id !== localPlayer.id) drawAvatar(players[id]);
       }
+
+      ctx.restore();
     }
 
     function gameLoop() {
