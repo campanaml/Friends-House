@@ -3,14 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>3D Multiplayer Base Template</title>
+  <title>3D Multiplayer Base - Interior System</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; user-select: none; }
     body, html { width: 100%; height: 100%; overflow: hidden; background: #000; color: #fff; }
 
-    /* Modal Overlay */
     #setup-modal {
       position: fixed; inset: 0; background: rgba(10, 10, 15, 0.95);
       display: flex; justify-content: center; align-items: center; z-index: 100;
@@ -28,13 +27,18 @@
       border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 8px;
     }
 
-    /* Game Canvas & Overlay */
     #game-container { position: relative; width: 100vw; height: 100vh; display: none; }
     #canvas3d { width: 100%; height: 100%; display: block; }
     
     #hud { position: absolute; top: 12px; left: 12px; font-size: 12px; background: rgba(0,0,0,0.6); padding: 8px; border-radius: 6px; }
     
-    /* Chat Overlay */
+    #interact-prompt {
+      position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+      background: rgba(92, 106, 196, 0.9); padding: 8px 16px; border-radius: 20px;
+      font-size: 13px; font-weight: bold; display: none; pointer-events: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
     #chat-container {
       position: absolute; bottom: 12px; left: 12px; width: 280px;
       background: rgba(0, 0, 0, 0.7); border-radius: 8px; padding: 8px; z-index: 10;
@@ -42,7 +46,6 @@
     #chat-logs { height: 80px; overflow-y: auto; font-size: 11px; display: flex; flex-direction: column; gap: 2px; }
     #chat-input { width: 100%; padding: 6px; background: #111; color: #fff; border: 1px solid #444; border-radius: 4px; outline: none; font-size: 11px; margin-top: 6px; }
 
-    /* World Space Nametags */
     .avatar-label {
       position: absolute; transform: translate(-50%, -100%); pointer-events: none;
       font-size: 11px; font-weight: bold; color: #fff; text-shadow: 0 1px 3px #000;
@@ -56,20 +59,19 @@
 </head>
 <body>
 
-  <!-- Entry Setup -->
   <div id="setup-modal">
     <div class="card">
-      <h2>3D BASE ENGINE</h2>
+      <h2>3D INTERIOR ENGINE</h2>
       <input type="text" id="username" placeholder="Username..." maxlength="12" />
       <input type="text" id="room-code" placeholder="Room Code (Blank to Host)" />
       <button onclick="enterGame()">JOIN ROOM</button>
     </div>
   </div>
 
-  <!-- Game Container -->
   <div id="game-container">
     <canvas id="canvas3d"></canvas>
     <div id="labels-container"></div>
+    <div id="interact-prompt">Press [E] to interact</div>
     
     <div id="hud">
       <div>ROOM: <span id="display-room">---</span></div>
@@ -83,45 +85,148 @@
   </div>
 
   <script>
-    // --- STATE MANAGEMENT ---
     let scene, camera, renderer;
-    let localPlayer = { id: '', name: '', x: 0, z: 0, rot: 0, mesh: null, labelEl: null };
+    let localPlayer = { id: '', name: '', x: 0, z: 0, rot: 0, mesh: null, labelEl: null, radius: 0.4 };
     let players = {};
     let keys = {};
     let isChatFocused = false;
     let peer = null, connections = {};
 
-    // --- 1. INITIALIZE THREE.JS EARLY ---
+    // Collision & Interaction Registries
+    let colliders = [];
+    let interactables = [];
+    let currentInteractable = null;
+
     function initEngine() {
       const canvas = document.getElementById('canvas3d');
       scene = new THREE.Scene();
       scene.background = new THREE.Color(0x111116);
 
       camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-      camera.position.set(0, 16, 16);
+      camera.position.set(0, 18, 18);
       camera.lookAt(0, 0, 0);
 
       renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
 
-      // Lighting
-      scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-      const light = new THREE.DirectionalLight(0xffffff, 0.5);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+      const light = new THREE.DirectionalLight(0xffffff, 0.6);
       light.position.set(10, 20, 10);
       scene.add(light);
 
-      // Simple Room Floor
+      buildRoom();
+      window.addEventListener('resize', onResize);
+    }
+
+    // --- WORLD & FURNITURE BUILDING ---
+    function buildRoom() {
+      // Floor
       const floor = new THREE.Mesh(
         new THREE.PlaneGeometry(20, 20),
-        new THREE.MeshStandardMaterial({ color: 0x222530, side: THREE.DoubleSide })
+        new THREE.MeshStandardMaterial({ color: 0x282c34, side: THREE.DoubleSide })
       );
       floor.rotation.x = Math.PI / 2;
       scene.add(floor);
 
-      window.addEventListener('resize', onResize);
+      // Outer Walls (AABB Colliders)
+      const wallMat = new THREE.MeshStandardMaterial({ color: 0x3e4451 });
+      const walls = [
+        { x: 0, z: -10, w: 20, d: 0.5 }, // North
+        { x: 0, z: 10, w: 20, d: 0.5 },  // South
+        { x: -10, z: 0, w: 0.5, d: 20 }, // West
+        { x: 10, z: 0, w: 0.5, d: 20 }   // East
+      ];
+
+      walls.forEach(w => {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w.w, 3, w.d), wallMat);
+        mesh.position.set(w.x, 1.5, w.z);
+        scene.add(mesh);
+        addBoxCollider(w.x, w.z, w.w, w.d);
+      });
+
+      // Furniture 1: Desk with Computer
+      createFurniture(
+        new THREE.BoxGeometry(3, 1.2, 1.8),
+        0x8b5a2b,
+        { x: -5, z: -5 },
+        "Use Laptop",
+        () => addChatLog("SYSTEM", "You opened the computer terminal!")
+      );
+
+      // Furniture 2: Comfortable Couch
+      createFurniture(
+        new THREE.BoxGeometry(4, 1, 1.8),
+        0x2e7d32,
+        { x: 4, z: 5 },
+        "Sit on Couch",
+        () => addChatLog("SYSTEM", "You took a moment to rest on the couch.")
+      );
     }
 
-    // --- 2. AVATAR CREATION ---
+    function createFurniture(geometry, color, pos, promptText, onInteract) {
+      const mat = new THREE.MeshStandardMaterial({ color });
+      const mesh = new THREE.Mesh(geometry, mat);
+      geometry.computeBoundingBox();
+      const size = geometry.boundingBox.getSize(new THREE.Vector3());
+
+      mesh.position.set(pos.x, size.y / 2, pos.z);
+      scene.add(mesh);
+
+      addBoxCollider(pos.x, pos.z, size.x, size.z);
+
+      interactables.push({
+        x: pos.x,
+        z: pos.z,
+        radius: Math.max(size.x, size.z) / 2 + 1.2,
+        prompt: promptText,
+        action: onInteract
+      });
+    }
+
+    function addBoxCollider(x, z, width, depth) {
+      colliders.push({
+        minX: x - width / 2,
+        maxX: x + width / 2,
+        minZ: z - depth / 2,
+        maxZ: z + depth / 2
+      });
+    }
+
+    // --- AABB COLLISION DETECTION ---
+    function checkCollision(targetX, targetZ) {
+      const r = localPlayer.radius;
+      for (let box of colliders) {
+        if (
+          targetX + r > box.minX &&
+          targetX - r < box.maxX &&
+          targetZ + r > box.minZ &&
+          targetZ - r < box.maxZ
+        ) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // --- INTERACTION SYSTEM ---
+    function updateInteractions() {
+      currentInteractable = null;
+      const promptEl = document.getElementById('interact-prompt');
+
+      for (let item of interactables) {
+        const dist = Math.hypot(localPlayer.x - item.x, localPlayer.z - item.z);
+        if (dist <= item.radius) {
+          currentInteractable = item;
+          promptEl.innerText = `Press [E] to ${item.prompt}`;
+          promptEl.style.display = 'block';
+          return;
+        }
+      }
+
+      promptEl.style.display = 'none';
+    }
+
+    // --- AVATAR & OVERLAYS ---
     function createPlayerMesh(colorHex = 0x5c6ac4) {
       const group = new THREE.Group();
       const body = new THREE.Mesh(
@@ -164,7 +269,7 @@
       for (let id in players) updateSingle(players[id]);
     }
 
-    // --- 3. INPUT & CHAT ISOLATION ---
+    // --- INPUT HANDLERS ---
     const chatInput = document.getElementById('chat-input');
     chatInput.addEventListener('focus', () => { isChatFocused = true; keys = {}; });
     chatInput.addEventListener('blur', () => { isChatFocused = false; });
@@ -179,8 +284,13 @@
           chatInput.value = '';
           chatInput.blur();
         }
-        return; // Mute game key inputs while typing
+        return;
       }
+
+      if ((e.key === 'e' || e.key === 'E') && currentInteractable) {
+        currentInteractable.action();
+      }
+
       keys[e.key] = true;
     });
 
@@ -200,7 +310,7 @@
       setTimeout(() => { bubble.style.display = 'none'; }, 4000);
     }
 
-    // --- 4. MULTIPLAYER NETWORKING ---
+    // --- NETWORK SYSTEM ---
     function initMultiplayer(targetRoom) {
       const isHost = !targetRoom;
       const roomID = isHost ? Math.random().toString(36).substring(2, 7) : targetRoom;
@@ -265,7 +375,7 @@
       }
     }
 
-    // --- 5. GAME LOOP & MOVEMENT ---
+    // --- GAME LOOP & MOVEMENT ---
     function enterGame() {
       const name = document.getElementById('username').value.trim();
       if (!name) return alert("Enter a name!");
@@ -277,14 +387,13 @@
       document.getElementById('game-container').style.display = 'block';
 
       initEngine();
-      onResize(); // Correct canvas sizing after display toggle
+      onResize();
 
       localPlayer.mesh = createPlayerMesh(0x5c6ac4);
       createUIOverlay(localPlayer);
 
       initMultiplayer(document.getElementById('room-code').value.trim().toLowerCase());
       
-      // Fixed 20 Ticks/Sec Network Sync Loop
       setInterval(() => {
         if (localPlayer.isMoving) broadcast({ type: 'move', player: getLocalData() });
       }, 50);
@@ -303,14 +412,16 @@
 
       if (dx !== 0 || dz !== 0) {
         const len = Math.hypot(dx, dz);
-        localPlayer.x += (dx / len) * 0.1;
-        localPlayer.z += (dz / len) * 0.1;
+        const speed = 0.1;
+        const nextX = localPlayer.x + (dx / len) * speed;
+        const nextZ = localPlayer.z + (dz / len) * speed;
+
+        // Axis-separated collision checks for smooth wall sliding
+        if (!checkCollision(nextX, localPlayer.z)) localPlayer.x = nextX;
+        if (!checkCollision(localPlayer.x, nextZ)) localPlayer.z = nextZ;
+
         localPlayer.rot = Math.atan2(dx, dz);
         localPlayer.isMoving = true;
-
-        // Clamp to room bounds
-        localPlayer.x = Math.max(-9.5, Math.min(9.5, localPlayer.x));
-        localPlayer.z = Math.max(-9.5, Math.min(9.5, localPlayer.z));
       } else {
         localPlayer.isMoving = false;
       }
@@ -319,6 +430,8 @@
         localPlayer.mesh.position.set(localPlayer.x, 0, localPlayer.z);
         localPlayer.mesh.rotation.y = localPlayer.rot;
       }
+
+      updateInteractions();
     }
 
     function onResize() {
