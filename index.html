@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Friends House</title>
-  <!-- PeerJS for free serverless WebRTC multiplayer -->
+  <title>Friends House - Full Edition</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; touch-action: manipulation; }
@@ -16,85 +15,46 @@
       background: #000; display: flex; flex-direction: column;
       justify-content: center; align-items: center; z-index: 10; padding: 15px;
     }
-    .card { border: 2px solid #fff; padding: 20px; background: #000; text-align: center; width: 100%; max-width: 340px; }
+    .card { border: 2px solid #fff; padding: 20px; background: #000; text-align: center; width: 100%; max-width: 360px; }
     input { width: 100%; padding: 10px; margin: 8px 0; background: #111; color: #fff; border: 1px solid #fff; outline: none; font-size: 14px; }
-    .avatar-options { display: flex; justify-content: space-between; margin: 12px 0; }
-    .avatar-btn { border: 1px solid #fff; padding: 8px; cursor: pointer; background: #111; flex: 1; margin: 0 3px; font-size: 12px; }
-    .avatar-btn.selected { background: #fff; color: #000; font-weight: bold; }
-    button.start { padding: 12px; background: #fff; color: #000; border: none; font-weight: bold; cursor: pointer; width: 100%; font-size: 14px; margin-top: 5px; }
+    .options-grid { display: flex; justify-content: space-between; margin: 8px 0; gap: 4px; }
+    .opt-btn { border: 1px solid #fff; padding: 6px; cursor: pointer; background: #111; flex: 1; font-size: 11px; text-align: center; }
+    .opt-btn.selected { background: #fff; color: #000; font-weight: bold; }
+    .color-swatch { width: 18px; height: 18px; border-radius: 50%; border: 1px solid #fff; display: inline-block; cursor: pointer; }
+    .color-swatch.selected { outline: 2px solid #fff; outline-offset: 2px; }
+    button.start { padding: 12px; background: #fff; color: #000; border: none; font-weight: bold; cursor: pointer; width: 100%; font-size: 14px; margin-top: 10px; }
 
     /* Game Layout */
     #game-container { 
-      position: relative; 
-      display: none; 
-      width: 100vw; 
-      max-width: 800px; 
-      margin: 0 auto;
+      position: relative; display: none; width: 100vw; max-width: 800px; margin: 0 auto;
     }
-
-    .canvas-wrapper {
-      position: relative;
-      width: 100%;
-      padding-top: 75%; /* 4:3 Aspect Ratio */
-    }
-
+    .canvas-wrapper { position: relative; width: 100%; padding-top: 75%; }
     canvas { 
-      position: absolute;
-      top: 0; left: 0;
-      width: 100% !important; 
-      height: 100% !important; 
-      border: 2px solid #fff; 
-      background: #000; 
-      display: block; 
+      position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; 
+      border: 2px solid #fff; background: #000; display: block; 
     }
     
     /* UI Overlays */
     #room-info { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; font-size: 10px; z-index: 2; }
-    #player-list { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; font-size: 10px; z-index: 2; width: 120px; }
+    #player-list { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; font-size: 10px; z-index: 2; width: 130px; }
     
-    /* Chat Box */
     #chat-container {
-      position: absolute; bottom: 8px; left: 8px; width: 220px; max-width: 50%;
+      position: absolute; bottom: 8px; left: 8px; width: 230px; max-width: 50%;
       background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; z-index: 2;
     }
     #chat-logs { height: 60px; overflow-y: auto; font-size: 10px; margin-bottom: 4px; display: flex; flex-direction: column; gap: 2px; }
     #chat-input { width: 100%; padding: 4px; background: #111; color: #fff; border: 1px solid #fff; outline: none; font-size: 10px; }
 
-    /* Emote Bar */
-    #emote-bar {
-      position: absolute; bottom: 8px; right: 8px; display: flex; gap: 4px; z-index: 2;
-    }
+    #emote-bar { position: absolute; bottom: 8px; right: 8px; display: flex; gap: 4px; z-index: 2; }
     .emote-btn { background: #111; border: 1px solid #fff; padding: 4px 8px; cursor: pointer; font-size: 14px; }
     .emote-btn:active { background: #fff; }
 
-    /* Mobile D-Pad & Controls */
-    #controls-container {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 8px;
-      padding: 0 10px;
-    }
-
-    #dpad {
-      display: grid;
-      grid-template-columns: repeat(3, 40px);
-      grid-template-rows: repeat(3, 40px);
-      gap: 4px;
-      user-select: none;
-    }
-    .dbtn {
-      background: #111; border: 1px solid #fff; color: #fff;
-      font-size: 16px; font-weight: bold; display: flex;
-      justify-content: center; align-items: center; border-radius: 4px; cursor: pointer;
-    }
+    /* Mobile D-Pad Controls */
+    #controls-container { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding: 0 10px; }
+    #dpad { display: grid; grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 40px); gap: 4px; user-select: none; }
+    .dbtn { background: #111; border: 1px solid #fff; color: #fff; font-size: 16px; font-weight: bold; display: flex; justify-content: center; align-items: center; border-radius: 4px; cursor: pointer; }
     .dbtn:active { background: #fff; color: #000; }
-
-    #action-btn {
-      width: 80px; height: 80px; background: #111; border: 2px solid #fff; color: #fff;
-      font-size: 12px; font-weight: bold; border-radius: 50%; display: flex;
-      justify-content: center; align-items: center; cursor: pointer; user-select: none;
-    }
+    #action-btn { width: 80px; height: 80px; background: #111; border: 2px solid #fff; color: #fff; font-size: 12px; font-weight: bold; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; user-select: none; }
     #action-btn:active { background: #fff; color: #000; }
   </style>
 </head>
@@ -105,12 +65,23 @@
     <div class="card">
       <h2 style="margin-bottom: 8px;">FRIENDS HOUSE</h2>
       <input type="text" id="username" placeholder="Your Name..." maxlength="12" />
-      <p style="font-size: 11px; margin-top: 4px;">Select Avatar:</p>
-      <div class="avatar-options">
-        <div class="avatar-btn selected" onclick="selectAvatar('rat', this)">🐀<br>Rat</div>
-        <div class="avatar-btn" onclick="selectAvatar('pig', this)">🐖<br>Pig</div>
-        <div class="avatar-btn" onclick="selectAvatar('guy', this)">🧍<br>Guy</div>
+      
+      <p style="font-size: 10px; margin-top: 6px;">SELECT AVATAR:</p>
+      <div class="options-grid">
+        <div class="opt-btn selected" onclick="selectAvatar('rat', this)">🐀 Rat</div>
+        <div class="opt-btn" onclick="selectAvatar('pig', this)">🐖 Pig</div>
+        <div class="opt-btn" onclick="selectAvatar('guy', this)">🧍 Guy</div>
       </div>
+
+      <p style="font-size: 10px; margin-top: 6px;">SELECT TINT:</p>
+      <div class="options-grid" style="justify-content:center; gap:8px;">
+        <div class="color-swatch selected" style="background:#ffffff;" onclick="selectColor('#ffffff', this)"></div>
+        <div class="color-swatch" style="background:#aaaaaa;" onclick="selectColor('#aaaaaa', this)"></div>
+        <div class="color-swatch" style="background:#555555;" onclick="selectColor('#555555', this)"></div>
+        <div class="color-swatch" style="background:#e8a5a5;" onclick="selectColor('#e8a5a5', this)"></div>
+        <div class="color-swatch" style="background:#a5e8c5;" onclick="selectColor('#a5e8c5', this)"></div>
+      </div>
+
       <input type="text" id="room-code" placeholder="Room Code (Blank to Host)" />
       <button class="start" onclick="enterHouse()">ENTER APARTMENT</button>
     </div>
@@ -156,12 +127,44 @@
   </div>
 
   <script>
+    // --- 8-BIT SYNTH AUDIO ENGINE ---
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function playAudioTone(freq, type = 'square', duration = 0.1, vol = 0.05) {
+      if (!audioCtx) return;
+      try {
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch(e){}
+    }
+
+    function playFootstepSFX() { playAudioTone(100 + Math.random()*40, 'triangle', 0.04, 0.02); }
+    function playDoorSFX() { playAudioTone(180, 'sawtooth', 0.15, 0.04); }
+    function playTVSFX() { playAudioTone(440, 'square', 0.08, 0.03); }
+    function playChatChime() { playAudioTone(587.33, 'sine', 0.08, 0.04); setTimeout(() => playAudioTone(880, 'sine', 0.12, 0.04), 80); }
+
+    // --- GAME ENGINE & STATE ---
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
     let selectedAvatar = 'rat';
+    let selectedColor = '#ffffff';
+    let isHost = false;
+
     let localPlayer = { 
-      id: '', name: '', avatar: 'rat', x: 400, y: 250, speed: 3.5, radius: 12,
+      id: '', name: '', avatar: 'rat', color: '#ffffff', x: 400, y: 250, speed: 3.5, radius: 12,
       dir: 'down', isMoving: false, isSeated: false, drink: null, bubble: null, emote: null 
     };
     
@@ -171,50 +174,54 @@
     let connections = {};
     let animFrame = 0;
 
-    // Interactive World State
-    let tvChannel = 0;
+    // Interactive Furniture & World State
+    let tvChannel = 0; // 0: OFF, 1: Static, 2: Pong Game
+    let pongState = { p1Y: 50, p2Y: 50, ballX: 40, ballY: 50, vx: 1.5, vy: 1 };
+    
+    let movableFurniture = [
+      { id: 'table', x: 380, y: 150, w: 120, h: 60, label: "TABLE" },
+      { id: 'couch', x: 310, y: 60, w: 35, h: 70, label: "COUCH" }
+    ];
+
     let doors = [
       { id: 1, x: 200, y: 360, w: 40, h: 10, isOpen: false },
       { id: 2, x: 460, y: 360, w: 40, h: 10, isOpen: false },
       { id: 3, x: 720, y: 360, w: 40, h: 10, isOpen: false }
     ];
 
-    // Solid Walls & Solid Furniture Boundaries
     const solids = [
-      // Outer Room Boundaries
-      { x: 0, y: 0, w: 800, h: 12 },
-      { x: 0, y: 588, w: 800, h: 12 },
-      { x: 0, y: 0, w: 12, h: 600 },
-      { x: 788, y: 0, w: 12, h: 600 },
-
-      // Main Partition Walls (With Gaps for Doors)
-      { x: 12, y: 360, w: 188, h: 10 },
-      { x: 240, y: 360, w: 220, h: 10 },
-      { x: 500, y: 360, w: 220, h: 10 },
-      { x: 760, y: 360, w: 28, h: 10 },
-
-      // Room Divider Pillars
-      { x: 270, y: 370, w: 8, h: 220 },
-      { x: 530, y: 370, w: 8, h: 220 },
-
-      // Furniture Solids (Prevents walking directly through furniture)
-      { x: 640, y: 20, w: 130, h: 80 },  // Kitchen Counter & Fridge
-      { x: 380, y: 150, w: 120, h: 60 },  // Living Room Table
-      { x: 310, y: 60, w: 35, h: 70 }    // Couch
+      { x: 0, y: 0, w: 800, h: 12 }, { x: 0, y: 588, w: 800, h: 12 },
+      { x: 0, y: 0, w: 12, h: 600 }, { x: 788, y: 0, w: 12, h: 600 },
+      { x: 12, y: 360, w: 188, h: 10 }, { x: 240, y: 360, w: 220, h: 10 },
+      { x: 500, y: 360, w: 220, h: 10 }, { x: 760, y: 360, w: 28, h: 10 },
+      { x: 270, y: 370, w: 8, h: 220 }, { x: 530, y: 370, w: 8, h: 220 },
+      { x: 640, y: 20, w: 130, h: 80 } // Kitchen
     ];
+
+    // Drag-and-drop state for Host
+    let draggedItem = null;
+    let dragOffset = { x: 0, y: 0 };
 
     function selectAvatar(type, el) {
       selectedAvatar = type;
-      document.querySelectorAll('.avatar-btn').forEach(btn => btn.classList.remove('selected'));
+      document.querySelectorAll('#setup-modal .opt-btn').forEach(btn => btn.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+
+    function selectColor(colorHex, el) {
+      selectedColor = colorHex;
+      document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
       el.classList.add('selected');
     }
 
     function enterHouse() {
+      initAudio();
       const name = document.getElementById('username').value.trim();
       if (!name) return alert('Please enter your name!');
       
       localPlayer.name = name;
       localPlayer.avatar = selectedAvatar;
+      localPlayer.color = selectedColor;
       localPlayer.id = Math.random().toString(36).substring(2, 7);
       
       const targetRoom = document.getElementById('room-code').value.trim().toLowerCase();
@@ -223,6 +230,7 @@
       document.getElementById('game-container').style.display = 'block';
 
       setupMobileControls();
+      setupMouseDrag();
       initMultiplayer(targetRoom);
       requestAnimationFrame(gameLoop);
     }
@@ -237,14 +245,41 @@
         btn.addEventListener('mousedown', start);
         btn.addEventListener('mouseup', end);
       };
-      bindTouch('btn-up', 'ArrowUp');
-      bindTouch('btn-down', 'ArrowDown');
-      bindTouch('btn-left', 'ArrowLeft');
-      bindTouch('btn-right', 'ArrowRight');
+      bindTouch('btn-up', 'ArrowUp'); bindTouch('btn-down', 'ArrowDown');
+      bindTouch('btn-left', 'ArrowLeft'); bindTouch('btn-right', 'ArrowRight');
+    }
+
+    // Host Decorate Mode (Drag Furniture)
+    function setupMouseDrag() {
+      canvas.addEventListener('mousedown', (e) => {
+        if (!isHost) return;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+        movableFurniture.forEach(f => {
+          if (mouseX >= f.x && mouseX <= f.x + f.w && mouseY >= f.y && mouseY <= f.y + f.h) {
+            draggedItem = f;
+            dragOffset.x = mouseX - f.x;
+            dragOffset.y = mouseY - f.y;
+          }
+        });
+      });
+
+      canvas.addEventListener('mousemove', (e) => {
+        if (draggedItem) {
+          const rect = canvas.getBoundingClientRect();
+          draggedItem.x = (e.clientX - rect.left) * (canvas.width / rect.width) - dragOffset.x;
+          draggedItem.y = (e.clientY - rect.top) * (canvas.height / rect.height) - dragOffset.y;
+          broadcast({ type: 'furniture', furniture: movableFurniture });
+        }
+      });
+
+      canvas.addEventListener('mouseup', () => draggedItem = null);
     }
 
     function initMultiplayer(targetRoom) {
-      const isHost = !targetRoom;
+      isHost = !targetRoom;
       const roomID = isHost ? Math.random().toString(36).substring(2, 7) : targetRoom;
       
       document.getElementById('display-room-code').innerText = roomID;
@@ -261,7 +296,7 @@
     function bindConnectionEvents(conn) {
       conn.on('open', () => {
         connections[conn.peer] = conn;
-        conn.send({ type: 'sync', player: localPlayer, tvChannel, doors });
+        conn.send({ type: 'sync', player: localPlayer, tvChannel, doors, furniture: movableFurniture });
       });
 
       conn.on('data', (data) => {
@@ -269,15 +304,25 @@
           players[data.player.id] = data.player;
           if (data.tvChannel !== undefined) tvChannel = data.tvChannel;
           if (data.doors) doors = data.doors;
-          if (data.type === 'sync') conn.send({ type: 'move', player: localPlayer, tvChannel, doors });
+          if (data.furniture) movableFurniture = data.furniture;
+          if (data.type === 'sync') conn.send({ type: 'move', player: localPlayer, tvChannel, doors, furniture: movableFurniture });
         } else if (data.type === 'chat') {
-          addChatMessage(data.name, data.message);
-          if (players[data.id]) setSpeechBubble(players[data.id], data.message);
+          let dist = Math.hypot(localPlayer.x - data.x, localPlayer.y - data.y);
+          let isNear = dist < 250;
+          let text = isNear ? data.message : "...[muffled chat]...";
+          
+          addChatMessage(data.name, text);
+          if (players[data.id] && isNear) setSpeechBubble(players[data.id], data.message);
+          playChatChime();
         } else if (data.type === 'emote') {
           if (players[data.id]) setEmote(players[data.id], data.emote);
         } else if (data.type === 'interact') {
           tvChannel = data.tvChannel;
           doors = data.doors;
+        } else if (data.type === 'furniture') {
+          movableFurniture = data.furniture;
+        } else if (data.type === 'pong') {
+          pongState = data.pongState;
         }
         updatePlayerList();
       });
@@ -304,7 +349,7 @@
       listEl.innerHTML = html;
     }
 
-    // Keyboard & Action Inputs
+    // Keyboard & Action Handling
     window.addEventListener('keydown', e => {
       keys[e.key] = true;
       if (e.key === 'e' || e.key === 'E') triggerInteraction();
@@ -317,23 +362,14 @@
         const msg = chatInput.value.trim();
         addChatMessage(localPlayer.name, msg);
         setSpeechBubble(localPlayer, msg);
-        broadcast({ type: 'chat', id: localPlayer.id, name: localPlayer.name, message: msg });
+        broadcast({ type: 'chat', id: localPlayer.id, name: localPlayer.name, message: msg, x: localPlayer.x, y: localPlayer.y });
         chatInput.value = '';
       }
     });
 
-    function setSpeechBubble(p, text) {
-      p.bubble = { text, timer: Date.now() + 4000 };
-    }
-
-    function sendEmote(emote) {
-      setEmote(localPlayer, emote);
-      broadcast({ type: 'emote', id: localPlayer.id, emote });
-    }
-
-    function setEmote(p, emote) {
-      p.emote = { symbol: emote, timer: Date.now() + 3000 };
-    }
+    function setSpeechBubble(p, text) { p.bubble = { text, timer: Date.now() + 4000 }; }
+    function sendEmote(emote) { setEmote(localPlayer, emote); broadcast({ type: 'emote', id: localPlayer.id, emote }); }
+    function setEmote(p, emote) { p.emote = { symbol: emote, timer: Date.now() + 3000 }; }
 
     function addChatMessage(sender, text) {
       const logs = document.getElementById('chat-logs');
@@ -341,17 +377,18 @@
       logs.scrollTop = logs.scrollHeight;
     }
 
-    // Interactive Objects Logic
     function triggerInteraction() {
       // Sitting on Couch
-      if (Math.hypot(localPlayer.x - 325, localPlayer.y - 95) < 35) {
+      let couch = movableFurniture.find(f => f.id === 'couch');
+      if (couch && Math.hypot(localPlayer.x - (couch.x + couch.w/2), localPlayer.y - (couch.y + couch.h/2)) < 35) {
         localPlayer.isSeated = !localPlayer.isSeated;
-        if (localPlayer.isSeated) { localPlayer.x = 325; localPlayer.y = 95; }
+        if (localPlayer.isSeated) { localPlayer.x = couch.x + 15; localPlayer.y = couch.y + 35; }
         broadcast({ type: 'move', player: localPlayer, tvChannel, doors });
       } 
-      // Toggle TV
-      else if (Math.hypot(localPlayer.x - 275, localPlayer.y - 100) < 40) {
+      // Toggle TV Channel
+      else if (Math.hypot(localPlayer.x - 275, localPlayer.y - 100) < 45) {
         tvChannel = (tvChannel + 1) % 3;
+        playTVSFX();
         broadcast({ type: 'interact', tvChannel, doors });
       } 
       // Fridge Beverage
@@ -365,45 +402,40 @@
         doors.forEach(d => {
           if (Math.hypot(localPlayer.x - (d.x + d.w/2), localPlayer.y - d.y) < 35) {
             d.isOpen = !d.isOpen;
+            playDoorSFX();
             broadcast({ type: 'interact', tvChannel, doors });
           }
         });
       }
     }
 
-    // Wall & Furniture Circle Collision Engine
     function checkWallCollision(newX, newY, radius) {
       for (let s of solids) {
         let closestX = Math.max(s.x, Math.min(newX, s.x + s.w));
         let closestY = Math.max(s.y, Math.min(newY, s.y + s.h));
-        let distX = newX - closestX;
-        let distY = newY - closestY;
-        if (Math.sqrt((distX * distX) + (distY * distY)) < radius) return true;
+        if (Math.hypot(newX - closestX, newY - closestY) < radius) return true;
       }
-
-      // Check closed door collisions
+      for (let f of movableFurniture) {
+        let closestX = Math.max(f.x, Math.min(newX, f.x + f.w));
+        let closestY = Math.max(f.y, Math.min(newY, f.y + f.h));
+        if (Math.hypot(newX - closestX, newY - closestY) < radius) return true;
+      }
       for (let d of doors) {
         if (!d.isOpen) {
           let closestX = Math.max(d.x, Math.min(newX, d.x + d.w));
           let closestY = Math.max(d.y, Math.min(newY, d.y + d.h));
-          let distX = newX - closestX;
-          let distY = newY - closestY;
-          if (Math.sqrt((distX * distX) + (distY * distY)) < radius) return true;
+          if (Math.hypot(newX - closestX, newY - closestY) < radius) return true;
         }
       }
       return false;
     }
 
-    // Player-to-Player Anti-Overlap Soft Collision
     function resolvePlayerOverlaps() {
       if (localPlayer.isSeated) return;
-
       for (let id in players) {
         let p = players[id];
         if (id === localPlayer.id || p.isSeated) continue;
-
-        let dx = localPlayer.x - p.x;
-        let dy = localPlayer.y - p.y;
+        let dx = localPlayer.x - p.x; let dy = localPlayer.y - p.y;
         let dist = Math.hypot(dx, dy);
         let minDist = localPlayer.radius + (p.radius || 12);
 
@@ -411,15 +443,26 @@
           let overlap = minDist - dist;
           let pushX = (dx / dist) * (overlap * 0.5);
           let pushY = (dy / dist) * (overlap * 0.5);
-
-          // Apply smooth push to resolve stacking
-          if (!checkWallCollision(localPlayer.x + pushX, localPlayer.y, localPlayer.radius)) {
-            localPlayer.x += pushX;
-          }
-          if (!checkWallCollision(localPlayer.x, localPlayer.y + pushY, localPlayer.radius)) {
-            localPlayer.y += pushY;
-          }
+          if (!checkWallCollision(localPlayer.x + pushX, localPlayer.y, localPlayer.radius)) localPlayer.x += pushX;
+          if (!checkWallCollision(localPlayer.x, localPlayer.y + pushY, localPlayer.radius)) localPlayer.y += pushY;
         }
+      }
+    }
+
+    function updatePongGame() {
+      if (tvChannel !== 2) return;
+      if (isHost) {
+        pongState.ballX += pongState.vx;
+        pongState.ballY += pongState.vy;
+        if (pongState.ballY <= 10 || pongState.ballY >= 90) pongState.vy *= -1;
+        if (pongState.ballX <= 10 || pongState.ballX >= 90) pongState.vx *= -1;
+
+        // Control paddle with keys if player is near TV
+        if (Math.hypot(localPlayer.x - 275, localPlayer.y - 100) < 60) {
+          if (keys['ArrowUp'] || keys['w']) pongState.p1Y = Math.max(10, pongState.p1Y - 4);
+          if (keys['ArrowDown'] || keys['s']) pongState.p1Y = Math.min(70, pongState.p1Y + 4);
+        }
+        broadcast({ type: 'pong', pongState });
       }
     }
 
@@ -435,73 +478,64 @@
         if (keys['ArrowLeft'] || keys['a']) { nextX -= localPlayer.speed; localPlayer.dir = 'left'; localPlayer.isMoving = true; }
         if (keys['ArrowRight'] || keys['d']) { nextX += localPlayer.speed; localPlayer.dir = 'right'; localPlayer.isMoving = true; }
 
-        // Sliding collision checks against environment
         if (!checkWallCollision(nextX, localPlayer.y, localPlayer.radius)) localPlayer.x = nextX;
         if (!checkWallCollision(localPlayer.x, nextY, localPlayer.radius)) localPlayer.y = nextY;
 
-        // Push players away if overlapping
         resolvePlayerOverlaps();
+        if (localPlayer.isMoving && animFrame % 18 === 0) playFootstepSFX();
       }
 
+      updatePongGame();
+
       if (localPlayer.isMoving && Object.keys(connections).length > 0) {
-        broadcast({ type: 'move', player: localPlayer, tvChannel, doors });
+        broadcast({ type: 'move', player: localPlayer, tvChannel, doors, furniture: movableFurniture });
       }
     }
 
     function drawApartment() {
-      ctx.strokeStyle = '#fff';
-      ctx.fillStyle = '#fff';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff'; ctx.lineWidth = 2;
 
-      // Outer Walls & Divisions
       solids.forEach(s => ctx.strokeRect(s.x, s.y, s.w, s.h));
 
-      // Draw Doors
       doors.forEach(d => {
-        if (!d.isOpen) {
-          ctx.fillRect(d.x, d.y, d.w, d.h);
-        } else {
-          ctx.strokeRect(d.x, d.y - 20, 8, 20); // Open door swing graphic
-        }
+        if (!d.isOpen) ctx.fillRect(d.x, d.y, d.w, d.h);
+        else ctx.strokeRect(d.x, d.y - 20, 8, 20);
       });
 
-      // Kitchen Label & Fridge Inner Line
-      ctx.fillText("KITCHEN", 670, 50);
-      ctx.strokeRect(730, 25, 35, 40); 
-      ctx.fillText("FRIDGE", 732, 50);
+      // Movable Furniture
+      movableFurniture.forEach(f => {
+        ctx.strokeRect(f.x, f.y, f.w, f.h);
+        ctx.fillText(f.label, f.x + 6, f.y + f.h/2 + 4);
+      });
 
-      // Living Room Items
-      ctx.fillText("TABLE", 420, 185);
-      ctx.fillText("COUCH", 312, 100);
+      // Kitchen
+      ctx.fillText("KITCHEN", 670, 50); ctx.strokeRect(730, 25, 35, 40); ctx.fillText("FRIDGE", 732, 50);
 
-      // Interactive TV Screen
+      // Interactive TV & Pong mini-game
       ctx.strokeRect(270, 50, 12, 100);
       if (tvChannel === 0) {
-        ctx.fillText("TV: OFF", 250, 40);
+        ctx.fillText("TV: OFF", 240, 40);
       } else if (tvChannel === 1) {
-        ctx.fillText("TV: STATIC", 250, 40);
+        ctx.fillText("TV: STATIC", 240, 40);
         ctx.fillRect(272, 60 + (animFrame % 60), 8, 10);
-      } else {
-        ctx.fillText("TV: CH 1", 250, 40);
-        ctx.strokeRect(273, 80, 6, 20);
+      } else if (tvChannel === 2) {
+        ctx.fillText("TV: PONG", 240, 40);
+        ctx.fillRect(272, 50 + (pongState.p1Y * 0.8), 3, 20); // Left Paddle
+        ctx.fillRect(279, 50 + (pongState.p2Y * 0.8), 3, 20); // Right Paddle
+        ctx.fillRect(272 + (pongState.ballX * 0.08), 50 + (pongState.ballY * 0.8), 3, 3); // Ball
       }
 
-      // Rooms & Bathrooms Labels
-      ctx.fillText("BEDROOM 1", 30, 390);
-      ctx.fillText("BEDROOM 2", 290, 390);
-      ctx.fillText("BEDROOM 3", 550, 390);
-
+      ctx.fillText("BEDROOM 1", 30, 390); ctx.fillText("BEDROOM 2", 290, 390); ctx.fillText("BEDROOM 3", 550, 390);
       ctx.strokeRect(200, 360, 60, 60); ctx.fillText("BATH", 212, 395);
       ctx.strokeRect(460, 360, 60, 60); ctx.fillText("BATH", 472, 395);
       ctx.strokeRect(720, 360, 60, 60); ctx.fillText("BATH", 732, 395);
     }
 
     function drawAvatar(p) {
-      ctx.fillStyle = '#fff';
-      ctx.strokeStyle = '#fff';
+      ctx.fillStyle = p.color || '#ffffff';
+      ctx.strokeStyle = p.color || '#ffffff';
       ctx.lineWidth = 2;
 
-      // Subtle walking bounce
       let bobY = (p.isMoving && !p.isSeated) ? Math.sin(animFrame * 0.3) * 3 : 0;
       let renderY = p.y + bobY;
 
@@ -520,43 +554,27 @@
       }
       ctx.stroke();
 
-      // Seated Tag
-      if (p.isSeated) {
-        ctx.fillText("🪑", p.x + 12, renderY);
-      }
+      if (p.isSeated) ctx.fillText("🪑", p.x + 12, renderY);
+      if (p.drink) ctx.fillText(p.drink, p.x - 18, renderY);
 
-      // Drink Icon
-      if (p.drink) {
-        ctx.fillText(p.drink, p.x - 18, renderY);
-      }
-
-      // Player Name
-      ctx.font = '12px monospace';
-      ctx.textAlign = 'center';
+      ctx.font = '12px monospace'; ctx.textAlign = 'center';
       ctx.fillText(p.name, p.x, renderY - 20);
 
-      // Speech Bubble
       if (p.bubble && Date.now() < p.bubble.timer) {
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(p.x - 40, renderY - 45, 80, 18);
-        ctx.fillStyle = '#000';
-        ctx.font = '10px monospace';
+        ctx.fillStyle = '#fff'; ctx.fillRect(p.x - 40, renderY - 45, 80, 18);
+        ctx.fillStyle = '#000'; ctx.font = '10px monospace';
         ctx.fillText(p.bubble.text.substring(0, 10), p.x, renderY - 32);
       }
 
-      // Emote
       if (p.emote && Date.now() < p.emote.timer) {
-        ctx.font = '16px monospace';
-        ctx.fillText(p.emote.symbol, p.x, renderY - 50);
+        ctx.font = '16px monospace'; ctx.fillText(p.emote.symbol, p.x, renderY - 50);
       }
     }
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawApartment();
-      
       drawAvatar(localPlayer);
-
       for (let id in players) {
         if (id !== localPlayer.id) drawAvatar(players[id]);
       }
