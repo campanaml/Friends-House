@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Friends Neighborhood - Single Open World Edition</title>
+  <title>Friends Neighborhood - Single Global World</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; touch-action: manipulation; }
@@ -80,9 +80,8 @@
         <div class="color-swatch" style="background:#a5e8c5;" onclick="selectColor('#a5e8c5', this)"></div>
       </div>
 
-      <input type="text" id="room-code" placeholder="Server Code (Blank to Host)" maxlength="8" />
-      <button class="start" onclick="enterHouse()">ENTER WORLD</button>
-      <div id="version-tag">Build: v1.3.0 (Single Seamless World + QA Passed)</div>
+      <button class="start" onclick="enterHouse()">PLAY NOW</button>
+      <div id="version-tag">Build: v1.4.0 (Default Global World)</div>
     </div>
   </div>
 
@@ -91,8 +90,8 @@
       <canvas id="gameCanvas" width="800" height="600"></canvas>
       
       <div id="room-info">
-        <div>SERVER: <span id="display-room-code" style="font-weight:bold;">---</span></div>
-        <div id="location-tag" style="font-weight:bold; color:#0f0; margin-top:2px;">SINGLE WORLD</div>
+        <div>SERVER: <span id="display-room-code" style="font-weight:bold; color:#0f0;">GLOBAL</span></div>
+        <div id="location-tag" style="font-weight:bold; color:#0f0; margin-top:2px;">WORLD</div>
         <div id="status-tag" style="font-size: 9px; color: #0f0; margin-top:2px;">Connecting...</div>
       </div>
 
@@ -127,14 +126,15 @@
         <div></div><div class="dbtn" id="btn-down">▼</div><div></div>
       </div>
       <div class="action-group">
-        <div id="action-btn" onclick="triggerInteraction()">VEHICLE<br>(E)</div>
+        <div id="action-btn" onclick="triggerInteraction()">INTERACT<br>(E)</div>
         <button id="reset-btn" onclick="resetPosition()">Reset Position</button>
       </div>
     </div>
   </div>
 
   <script>
-    const GAME_VERSION = "1.3.0";
+    const GAME_VERSION = "1.4.0";
+    const DEFAULT_GLOBAL_ROOM = "friends-neighborhood-global-v1";
 
     let audioCtx = null;
     function initAudio() {
@@ -158,6 +158,7 @@
 
     function playFootstepSFX() { playAudioTone(100 + Math.random()*40, 'triangle', 0.04, 0.02); }
     function playVehicleSFX() { playAudioTone(80 + Math.random()*20, 'sawtooth', 0.06, 0.03); }
+    function playDoorSFX() { playAudioTone(150, 'sine', 0.15, 0.05); setTimeout(() => playAudioTone(300, 'sine', 0.2, 0.05), 100); }
     function playChatChime() { playAudioTone(587.33, 'sine', 0.08, 0.04); setTimeout(() => playAudioTone(880, 'sine', 0.12, 0.04), 80); }
 
     const canvas = document.getElementById('gameCanvas');
@@ -168,11 +169,10 @@
 
     let selectedAvatar = 'rat';
     let selectedColor = '#ffffff';
-    let isHost = false;
 
     let localPlayer = { 
       id: '', name: '', avatar: 'rat', color: '#ffffff', x: 300, y: 450, speed: 4, radius: 12,
-      dir: 'down', isMoving: false, vehicle: null, bubble: null, emote: null
+      dir: 'down', isMoving: false, location: 'world', vehicle: null, bubble: null, emote: null
     };
     
     let players = {}; 
@@ -181,43 +181,35 @@
     let connections = {};
     let animFrame = 0;
 
-    // Open Houses directly rendered on the map
     const houses = [
-      { id: 'house_1', name: 'House 1', x: 100, y: 100, w: 400, h: 300, doorX: 300, doorY: 400, furniture: '🛋️ Living Room' },
-      { id: 'house_2', name: 'House 2', x: 1000, y: 100, w: 400, h: 300, doorX: 1200, doorY: 400, furniture: '🍽️ Lounge' },
-      { id: 'house_3', name: 'House 3', x: 1800, y: 100, w: 400, h: 300, doorX: 2000, doorY: 400, furniture: '🍸 Studio' }
+      { id: 'house_1', name: 'House 1', x: 100, y: 100, w: 400, h: 300, doorX: 300, doorY: 400, exitX: 300, exitY: 430, furniture: '🛋️ Living Room' },
+      { id: 'house_2', name: 'House 2', x: 1000, y: 100, w: 400, h: 300, doorX: 1200, doorY: 400, exitX: 1200, exitY: 430, furniture: '🍽️ Lounge' },
+      { id: 'house_3', name: 'House 3', x: 1800, y: 100, w: 400, h: 300, doorX: 2000, doorY: 400, exitX: 2000, exitY: 430, furniture: '🍸 Studio' }
     ];
 
     let vehicles = [
-      { id: 'car1', type: 'car', icon: '🚗', x: 550, y: 450, w: 40, h: 40, driver: null, speed: 8 },
-      { id: 'bike1', type: 'bike', icon: '🛵', x: 1450, y: 450, w: 30, h: 30, driver: null, speed: 10 },
-      { id: 'plane1', type: 'plane', icon: '✈️', x: 1200, y: 1200, w: 60, h: 60, driver: null, speed: 13 }
+      { id: 'car1', type: 'car', icon: '🚗', x: 550, y: 450, w: 40, h: 40, driver: null, speed: 8, location: 'world' },
+      { id: 'bike1', type: 'bike', icon: '🛵', x: 1450, y: 450, w: 30, h: 30, driver: null, speed: 10, location: 'world' },
+      { id: 'plane1', type: 'plane', icon: '✈️', x: 1200, y: 1200, w: 60, h: 60, driver: null, speed: 13, location: 'world' }
     ];
 
-    /* Solid walls for outer bounds and open house structures (leaving 60px doorways) */
     const outdoorSolids = [
       { x: 0, y: 0, w: WORLD_WIDTH, h: 10 },
       { x: 0, y: WORLD_HEIGHT - 10, w: WORLD_WIDTH, h: 10 },
       { x: 0, y: 0, w: 10, h: WORLD_HEIGHT },
       { x: WORLD_WIDTH - 10, y: 0, w: 10, h: WORLD_HEIGHT },
-      
-      // House 1 Outer Walls with Door Gap (doorX: 300)
-      { x: 100, y: 100, w: 400, h: 10 }, { x: 100, y: 100, w: 10, h: 300 }, { x: 490, y: 100, w: 10, h: 300 },
-      { x: 100, y: 390, w: 170, h: 10 }, { x: 330, y: 390, w: 170, h: 10 },
-      // House 1 Interior Furniture Block
-      { x: 180, y: 180, w: 120, h: 60 },
+      { x: 100, y: 100, w: 400, h: 300 },
+      { x: 1000, y: 100, w: 400, h: 300 },
+      { x: 1800, y: 100, w: 400, h: 300 }
+    ];
 
-      // House 2 Outer Walls with Door Gap (doorX: 1200)
-      { x: 1000, y: 100, w: 400, h: 10 }, { x: 1000, y: 100, w: 10, h: 300 }, { x: 1390, y: 100, w: 10, h: 300 },
-      { x: 1000, y: 390, w: 170, h: 10 }, { x: 1230, y: 390, w: 170, h: 10 },
-      // House 2 Interior Furniture Block
-      { x: 1120, y: 200, w: 160, h: 80 },
-
-      // House 3 Outer Walls with Door Gap (doorX: 2000)
-      { x: 1800, y: 100, w: 400, h: 10 }, { x: 1800, y: 100, w: 10, h: 300 }, { x: 2190, y: 100, w: 10, h: 300 },
-      { x: 1800, y: 390, w: 170, h: 10 }, { x: 2030, y: 390, w: 170, h: 10 },
-      // House 3 Interior Furniture Block
-      { x: 1950, y: 180, w: 100, h: 100 }
+    const houseSolids = [
+      { x: 100, y: 100, w: 600, h: 10 },
+      { x: 100, y: 100, w: 10, h: 400 },
+      { x: 690, y: 100, w: 10, h: 400 },
+      { x: 100, y: 490, w: 250, h: 10 },
+      { x: 450, y: 490, w: 250, h: 10 },
+      { x: 250, y: 200, w: 300, h: 100 }
     ];
 
     function toggleChat() {
@@ -251,8 +243,10 @@
         if (v) v.driver = null;
         localPlayer.vehicle = null;
       }
+      localPlayer.location = 'world';
       localPlayer.x = 300;
       localPlayer.y = 450;
+      document.getElementById('location-tag').innerText = "WORLD";
       broadcast({ type: 'move', player: localPlayer, vehicles });
       updatePlayerList();
     }
@@ -267,13 +261,11 @@
       localPlayer.color = selectedColor;
       localPlayer.id = Math.random().toString(36).substring(2, 7);
       
-      const targetRoom = document.getElementById('room-code').value.trim().toLowerCase();
-      
       document.getElementById('setup-modal').style.display = 'none';
       document.getElementById('game-container').style.display = 'block';
 
       setupMobileControls();
-      initMultiplayer(targetRoom);
+      initMultiplayerGlobal();
       requestAnimationFrame(gameLoop);
     }
 
@@ -291,16 +283,23 @@
       bindTouch('btn-left', 'ArrowLeft'); bindTouch('btn-right', 'ArrowRight');
     }
 
-    function initMultiplayer(targetRoom) {
-      isHost = !targetRoom;
-      const roomID = isHost ? Math.random().toString(36).substring(2, 7) : targetRoom;
-      
-      document.getElementById('display-room-code').innerText = roomID;
-      peer = new Peer(isHost ? roomID : undefined);
+    function initMultiplayerGlobal() {
+      // Automatic default server auto-connect system
+      peer = new Peer(DEFAULT_GLOBAL_ROOM);
 
       peer.on('open', () => {
-        document.getElementById('status-tag').innerText = isHost ? "HOSTING" : "CONNECTED";
-        if (!isHost) bindConnectionEvents(peer.connect(roomID));
+        document.getElementById('status-tag').innerText = "HOSTING WORLD";
+      });
+
+      peer.on('error', (err) => {
+        if (err.type === 'unavailable-id') {
+          // Global host already exists, connect as client
+          peer = new Peer();
+          peer.on('open', () => {
+            document.getElementById('status-tag').innerText = "CONNECTED";
+            bindConnectionEvents(peer.connect(DEFAULT_GLOBAL_ROOM));
+          });
+        }
       });
 
       peer.on('connection', (conn) => bindConnectionEvents(conn));
@@ -320,12 +319,13 @@
             conn.send({ type: 'move', player: localPlayer, vehicles, version: GAME_VERSION });
           }
         } else if (data.type === 'chat') {
+          let sameLocation = (data.location === localPlayer.location);
           let dist = Math.hypot(localPlayer.x - data.x, localPlayer.y - data.y);
-          let isNear = dist < 500;
+          let isNear = sameLocation && dist < 500;
           let text = isNear ? data.message : "...[distant chat]...";
           
           addChatMessage(data.name, text);
-          if (players[data.id] && isNear) setSpeechBubble(players[data.id], data.message);
+          if (players[data.id] && sameLocation) setSpeechBubble(players[data.id], data.message);
           playChatChime();
         } else if (data.type === 'emote') {
           if (players[data.id]) {
@@ -354,7 +354,7 @@
       const listEl = document.getElementById('player-names');
       let html = `<div>• ${localPlayer.name} (You)</div>`;
       for (let id in players) {
-        if (id !== localPlayer.id) {
+        if (id !== localPlayer.id && players[id].location === localPlayer.location) {
           html += `<div>• ${players[id].name}</div>`;
         }
       }
@@ -379,7 +379,7 @@
         setSpeechBubble(localPlayer, msg);
         broadcast({ 
           type: 'chat', id: localPlayer.id, name: localPlayer.name, 
-          message: msg, x: localPlayer.x, y: localPlayer.y 
+          message: msg, x: localPlayer.x, y: localPlayer.y, location: localPlayer.location 
         });
         chatInput.value = '';
         chatInput.blur();
@@ -399,25 +399,46 @@
     }
 
     function triggerInteraction() {
-      if (localPlayer.vehicle) {
-        let v = vehicles.find(item => item.id === localPlayer.vehicle);
-        if (v) {
-          v.driver = null;
-          localPlayer.x = v.x + 40;
-          localPlayer.y = v.y + 40;
+      if (localPlayer.location === 'world') {
+        if (localPlayer.vehicle) {
+          let v = vehicles.find(item => item.id === localPlayer.vehicle);
+          if (v) {
+            v.driver = null;
+            localPlayer.x = v.x + 40;
+            localPlayer.y = v.y + 40;
+          }
+          localPlayer.vehicle = null;
+          broadcast({ type: 'move', player: localPlayer, vehicles });
+          return;
         }
-        localPlayer.vehicle = null;
-        broadcast({ type: 'move', player: localPlayer, vehicles });
-        return;
-      }
 
-      vehicles.forEach(v => {
-        if (!v.driver && Math.hypot(localPlayer.x - v.x, localPlayer.y - v.y) < 50) {
-          v.driver = localPlayer.id;
-          localPlayer.vehicle = v.id;
+        vehicles.forEach(v => {
+          if (!v.driver && Math.hypot(localPlayer.x - v.x, localPlayer.y - v.y) < 50) {
+            v.driver = localPlayer.id;
+            localPlayer.vehicle = v.id;
+          }
+        });
+
+        houses.forEach(h => {
+          if (Math.hypot(localPlayer.x - h.doorX, localPlayer.y - h.doorY) < 40) {
+            localPlayer.location = h.id;
+            localPlayer.x = 400; localPlayer.y = 450;
+            playDoorSFX();
+            document.getElementById('location-tag').innerText = h.name.toUpperCase();
+          }
+        });
+      } else {
+        if (Math.hypot(localPlayer.x - 400, localPlayer.y - 480) < 50) {
+          let h = houses.find(item => item.id === localPlayer.location);
+          localPlayer.location = 'world';
+          localPlayer.x = h ? h.exitX : 300;
+          localPlayer.y = h ? h.exitY : 430;
+          playDoorSFX();
+          document.getElementById('location-tag').innerText = "WORLD";
         }
-      });
+      }
       broadcast({ type: 'move', player: localPlayer, vehicles });
+      updatePlayerList();
     }
 
     function checkWallCollision(newX, newY, radius) {
@@ -426,7 +447,8 @@
         if (v && v.type === 'plane') return false;
       }
 
-      for (let s of outdoorSolids) {
+      let solids = localPlayer.location === 'world' ? outdoorSolids : houseSolids;
+      for (let s of solids) {
         let closestX = Math.max(s.x, Math.min(newX, s.x + s.w));
         let closestY = Math.max(s.y, Math.min(newY, s.y + s.h));
         if (Math.hypot(newX - closestX, newY - closestY) < radius) return true;
@@ -482,28 +504,38 @@
       ctx.fillStyle = '#222'; ctx.fillRect(800, 1150, 900, 100);
       ctx.fillStyle = '#fff'; ctx.font = '12px monospace'; ctx.fillText("AIRSTRIP", 1200, 1205);
 
-      // Open Houses Structures
+      // Houses
       ctx.lineWidth = 2;
       houses.forEach(h => {
         ctx.strokeStyle = '#fff';
         ctx.strokeRect(h.x, h.y, h.w, h.h);
-        ctx.fillText(h.name, h.x + 40, h.y + 30);
+        ctx.fillText(h.name, h.x + 160, h.y + 150);
         
-        // Doorway Visual Gap
-        ctx.clearRect(h.doorX - 30, h.doorY - 10, 60, 12);
-        ctx.strokeStyle = '#0f0';
-        ctx.strokeRect(h.doorX - 30, h.doorY - 2, 60, 4);
-
-        // Render Internal Furniture directly in open world
-        ctx.fillStyle = '#aaa'; ctx.font = '11px monospace';
-        ctx.fillText(h.furniture, h.x + 100, h.y + 150);
+        ctx.fillStyle = '#0f0';
+        ctx.fillRect(h.doorX - 20, h.doorY - 5, 40, 10);
         ctx.fillStyle = '#fff';
       });
 
       vehicles.forEach(v => {
-        ctx.font = '24px monospace'; ctx.textAlign = 'center';
-        ctx.fillText(v.icon, v.x, v.y);
+        if (v.location === 'world') {
+          ctx.font = '24px monospace'; ctx.textAlign = 'center';
+          ctx.fillText(v.icon, v.x, v.y);
+        }
       });
+    }
+
+    function drawHouseInterior() {
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
+      ctx.strokeRect(100, 100, 600, 400);
+
+      ctx.fillStyle = '#0f0';
+      ctx.fillRect(350, 490, 100, 10);
+      ctx.fillStyle = '#fff'; ctx.font = '12px monospace'; ctx.textAlign = 'center';
+      ctx.fillText("EXIT", 400, 480);
+
+      ctx.strokeRect(250, 200, 300, 100);
+      let houseObj = houses.find(h => h.id === localPlayer.location);
+      ctx.fillText(houseObj ? houseObj.furniture : '🛋️ Interior', 400, 255);
     }
 
     function drawAvatar(p) {
@@ -549,16 +581,20 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
 
-      let camX = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, localPlayer.x - canvas.width / 2));
-      let camY = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, localPlayer.y - canvas.height / 2));
-      ctx.translate(-camX, -camY);
+      if (localPlayer.location === 'world') {
+        let camX = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, localPlayer.x - canvas.width / 2));
+        let camY = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, localPlayer.y - canvas.height / 2));
+        ctx.translate(-camX, -camY);
 
-      drawWorld();
-      
+        drawWorld();
+      } else {
+        drawHouseInterior();
+      }
+
       drawAvatar(localPlayer);
 
       for (let id in players) {
-        if (id !== localPlayer.id) {
+        if (id !== localPlayer.id && players[id].location === localPlayer.location) {
           drawAvatar(players[id]);
         }
       }
