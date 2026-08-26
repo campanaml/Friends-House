@@ -161,7 +161,7 @@
 
     let selectedAvatar = 'rat';
     let localPlayer = { 
-      id: '', name: '', avatar: 'rat', x: 400, y: 250, speed: 4, 
+      id: '', name: '', avatar: 'rat', x: 400, y: 250, speed: 3.5, radius: 12,
       dir: 'down', isMoving: false, isSeated: false, drink: null, bubble: null, emote: null 
     };
     
@@ -172,21 +172,35 @@
     let animFrame = 0;
 
     // Interactive World State
-    let tvChannel = 0; // 0: OFF, 1: Static, 2: Channel 1
+    let tvChannel = 0;
     let doors = [
-      { id: 1, x: 200, y: 360, w: 40, h: 8, isOpen: false },
-      { id: 2, x: 460, y: 360, w: 40, h: 8, isOpen: false },
-      { id: 3, x: 720, y: 360, w: 40, h: 8, isOpen: false }
+      { id: 1, x: 200, y: 360, w: 40, h: 10, isOpen: false },
+      { id: 2, x: 460, y: 360, w: 40, h: 10, isOpen: false },
+      { id: 3, x: 720, y: 360, w: 40, h: 10, isOpen: false }
     ];
 
-    const walls = [
-      { x: 0, y: 0, w: 800, h: 10 },
-      { x: 0, y: 590, w: 800, h: 10 },
-      { x: 0, y: 0, w: 10, h: 600 },
-      { x: 790, y: 0, w: 10, h: 600 },
-      { x: 250, y: 360, w: 540, h: 8 },
-      { x: 270, y: 360, w: 8, h: 230 },
-      { x: 530, y: 360, w: 8, h: 230 }
+    // Solid Walls & Solid Furniture Boundaries
+    const solids = [
+      // Outer Room Boundaries
+      { x: 0, y: 0, w: 800, h: 12 },
+      { x: 0, y: 588, w: 800, h: 12 },
+      { x: 0, y: 0, w: 12, h: 600 },
+      { x: 788, y: 0, w: 12, h: 600 },
+
+      // Main Partition Walls (With Gaps for Doors)
+      { x: 12, y: 360, w: 188, h: 10 },
+      { x: 240, y: 360, w: 220, h: 10 },
+      { x: 500, y: 360, w: 220, h: 10 },
+      { x: 760, y: 360, w: 28, h: 10 },
+
+      // Room Divider Pillars
+      { x: 270, y: 370, w: 8, h: 220 },
+      { x: 530, y: 370, w: 8, h: 220 },
+
+      // Furniture Solids (Prevents walking directly through furniture)
+      { x: 640, y: 20, w: 130, h: 80 },  // Kitchen Counter & Fridge
+      { x: 380, y: 150, w: 120, h: 60 },  // Living Room Table
+      { x: 310, y: 60, w: 35, h: 70 }    // Couch
     ];
 
     function selectAvatar(type, el) {
@@ -327,27 +341,29 @@
       logs.scrollTop = logs.scrollHeight;
     }
 
-    // Interactive Objects Logic (Sitting, TV, Fridge, Doors)
+    // Interactive Objects Logic
     function triggerInteraction() {
-      // Couch / Chair Sitting
-      if (localPlayer.x >= 300 && localPlayer.x <= 360 && localPlayer.y >= 50 && localPlayer.y <= 150) {
+      // Sitting on Couch
+      if (Math.hypot(localPlayer.x - 325, localPlayer.y - 95) < 35) {
         localPlayer.isSeated = !localPlayer.isSeated;
-        if (localPlayer.isSeated) { localPlayer.x = 330; localPlayer.y = 100; }
+        if (localPlayer.isSeated) { localPlayer.x = 325; localPlayer.y = 95; }
+        broadcast({ type: 'move', player: localPlayer, tvChannel, doors });
       } 
-      // TV Toggle
-      else if (localPlayer.x >= 250 && localPlayer.x <= 300 && localPlayer.y >= 30 && localPlayer.y <= 160) {
+      // Toggle TV
+      else if (Math.hypot(localPlayer.x - 275, localPlayer.y - 100) < 40) {
         tvChannel = (tvChannel + 1) % 3;
         broadcast({ type: 'interact', tvChannel, doors });
       } 
-      // Fridge Drink
-      else if (localPlayer.x >= 640 && localPlayer.x <= 770 && localPlayer.y >= 20 && localPlayer.y <= 120) {
+      // Fridge Beverage
+      else if (Math.hypot(localPlayer.x - 730, localPlayer.y - 65) < 45) {
         const drinks = ['🥤', '🧃', '☕', '🍺'];
         localPlayer.drink = drinks[Math.floor(Math.random() * drinks.length)];
+        broadcast({ type: 'move', player: localPlayer, tvChannel, doors });
       } 
-      // Doors
+      // Open/Close Doors
       else {
         doors.forEach(d => {
-          if (Math.abs(localPlayer.x - (d.x + 20)) < 30 && Math.abs(localPlayer.y - d.y) < 30) {
+          if (Math.hypot(localPlayer.x - (d.x + d.w/2), localPlayer.y - d.y) < 35) {
             d.isOpen = !d.isOpen;
             broadcast({ type: 'interact', tvChannel, doors });
           }
@@ -355,20 +371,56 @@
       }
     }
 
-    function checkCollision(newX, newY, radius) {
-      // Check solid walls
-      for (let wall of walls) {
-        // Skip wall collision if passing through an open door
-        let isDoorArea = doors.some(d => d.isOpen && newX >= d.x && newX <= d.x + d.w && Math.abs(newY - d.y) < 15);
-        if (isDoorArea) continue;
-
-        let closestX = Math.max(wall.x, Math.min(newX, wall.x + wall.w));
-        let closestY = Math.max(wall.y, Math.min(newY, wall.y + wall.h));
+    // Wall & Furniture Circle Collision Engine
+    function checkWallCollision(newX, newY, radius) {
+      for (let s of solids) {
+        let closestX = Math.max(s.x, Math.min(newX, s.x + s.w));
+        let closestY = Math.max(s.y, Math.min(newY, s.y + s.h));
         let distX = newX - closestX;
         let distY = newY - closestY;
         if (Math.sqrt((distX * distX) + (distY * distY)) < radius) return true;
       }
+
+      // Check closed door collisions
+      for (let d of doors) {
+        if (!d.isOpen) {
+          let closestX = Math.max(d.x, Math.min(newX, d.x + d.w));
+          let closestY = Math.max(d.y, Math.min(newY, d.y + d.h));
+          let distX = newX - closestX;
+          let distY = newY - closestY;
+          if (Math.sqrt((distX * distX) + (distY * distY)) < radius) return true;
+        }
+      }
       return false;
+    }
+
+    // Player-to-Player Anti-Overlap Soft Collision
+    function resolvePlayerOverlaps() {
+      if (localPlayer.isSeated) return;
+
+      for (let id in players) {
+        let p = players[id];
+        if (id === localPlayer.id || p.isSeated) continue;
+
+        let dx = localPlayer.x - p.x;
+        let dy = localPlayer.y - p.y;
+        let dist = Math.hypot(dx, dy);
+        let minDist = localPlayer.radius + (p.radius || 12);
+
+        if (dist < minDist && dist > 0) {
+          let overlap = minDist - dist;
+          let pushX = (dx / dist) * (overlap * 0.5);
+          let pushY = (dy / dist) * (overlap * 0.5);
+
+          // Apply smooth push to resolve stacking
+          if (!checkWallCollision(localPlayer.x + pushX, localPlayer.y, localPlayer.radius)) {
+            localPlayer.x += pushX;
+          }
+          if (!checkWallCollision(localPlayer.x, localPlayer.y + pushY, localPlayer.radius)) {
+            localPlayer.y += pushY;
+          }
+        }
+      }
     }
 
     function update() {
@@ -383,8 +435,12 @@
         if (keys['ArrowLeft'] || keys['a']) { nextX -= localPlayer.speed; localPlayer.dir = 'left'; localPlayer.isMoving = true; }
         if (keys['ArrowRight'] || keys['d']) { nextX += localPlayer.speed; localPlayer.dir = 'right'; localPlayer.isMoving = true; }
 
-        if (!checkCollision(nextX, localPlayer.y, 14)) localPlayer.x = nextX;
-        if (!checkCollision(localPlayer.x, nextY, 14)) localPlayer.y = nextY;
+        // Sliding collision checks against environment
+        if (!checkWallCollision(nextX, localPlayer.y, localPlayer.radius)) localPlayer.x = nextX;
+        if (!checkWallCollision(localPlayer.x, nextY, localPlayer.radius)) localPlayer.y = nextY;
+
+        // Push players away if overlapping
+        resolvePlayerOverlaps();
       }
 
       if (localPlayer.isMoving && Object.keys(connections).length > 0) {
@@ -397,25 +453,26 @@
       ctx.fillStyle = '#fff';
       ctx.lineWidth = 2;
 
-      // Draw Base Walls
-      walls.forEach(w => ctx.strokeRect(w.x, w.y, w.w, w.h));
+      // Outer Walls & Divisions
+      solids.forEach(s => ctx.strokeRect(s.x, s.y, s.w, s.h));
 
       // Draw Doors
       doors.forEach(d => {
         if (!d.isOpen) {
           ctx.fillRect(d.x, d.y, d.w, d.h);
         } else {
-          ctx.strokeRect(d.x, d.y - 20, 8, 20); // Open door graphic
+          ctx.strokeRect(d.x, d.y - 20, 8, 20); // Open door swing graphic
         }
       });
 
-      // Kitchen & Fridge
-      ctx.strokeRect(640, 20, 130, 90); ctx.fillText("KITCHEN", 670, 50);
-      ctx.strokeRect(730, 25, 35, 40); ctx.fillText("FRIDGE", 732, 50);
+      // Kitchen Label & Fridge Inner Line
+      ctx.fillText("KITCHEN", 670, 50);
+      ctx.strokeRect(730, 25, 35, 40); 
+      ctx.fillText("FRIDGE", 732, 50);
 
-      // Living Room Table & Couch
-      ctx.strokeRect(380, 150, 120, 70); ctx.fillText("TABLE", 420, 190);
-      ctx.strokeRect(310, 60, 40, 80); ctx.fillText("COUCH", 312, 105);
+      // Living Room Items
+      ctx.fillText("TABLE", 420, 185);
+      ctx.fillText("COUCH", 312, 100);
 
       // Interactive TV Screen
       ctx.strokeRect(270, 50, 12, 100);
@@ -423,13 +480,13 @@
         ctx.fillText("TV: OFF", 250, 40);
       } else if (tvChannel === 1) {
         ctx.fillText("TV: STATIC", 250, 40);
-        ctx.fillRect(272, 60 + (animFrame % 60), 8, 10); // Static noise effect
+        ctx.fillRect(272, 60 + (animFrame % 60), 8, 10);
       } else {
         ctx.fillText("TV: CH 1", 250, 40);
-        ctx.strokeRect(273, 80, 6, 20); // Animated bar on TV
+        ctx.strokeRect(273, 80, 6, 20);
       }
 
-      // Rooms & Bathrooms
+      // Rooms & Bathrooms Labels
       ctx.fillText("BEDROOM 1", 30, 390);
       ctx.fillText("BEDROOM 2", 290, 390);
       ctx.fillText("BEDROOM 3", 550, 390);
@@ -444,7 +501,7 @@
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 2;
 
-      // Bobbing animation offset
+      // Subtle walking bounce
       let bobY = (p.isMoving && !p.isSeated) ? Math.sin(animFrame * 0.3) * 3 : 0;
       let renderY = p.y + bobY;
 
@@ -463,7 +520,7 @@
       }
       ctx.stroke();
 
-      // Seated Indicator
+      // Seated Tag
       if (p.isSeated) {
         ctx.fillText("🪑", p.x + 12, renderY);
       }
@@ -478,7 +535,7 @@
       ctx.textAlign = 'center';
       ctx.fillText(p.name, p.x, renderY - 20);
 
-      // Speech Bubble Overlay
+      // Speech Bubble
       if (p.bubble && Date.now() < p.bubble.timer) {
         ctx.fillStyle = '#fff';
         ctx.fillRect(p.x - 40, renderY - 45, 80, 18);
@@ -487,7 +544,7 @@
         ctx.fillText(p.bubble.text.substring(0, 10), p.x, renderY - 32);
       }
 
-      // Emote Overlay
+      // Emote
       if (p.emote && Date.now() < p.emote.timer) {
         ctx.font = '16px monospace';
         ctx.fillText(p.emote.symbol, p.x, renderY - 50);
