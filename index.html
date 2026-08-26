@@ -85,7 +85,7 @@
       </div>
 
       <button class="start" onclick="enterHouse()">ENTER WORLD</button>
-      <div id="version-tag">Build: v1.6.1 (Auto-Disconnect Cleaned)</div>
+      <div id="version-tag">Build: v1.6.2 (Heartbeat & Extended Timeout)</div>
     </div>
   </div>
 
@@ -137,11 +137,13 @@
   </div>
 
   <script>
-    const GAME_VERSION = "1.6.1";
+    const GAME_VERSION = "1.6.2";
+    const PLAYER_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutos de timeout
     let activeWorldRoom = "main-town";
 
     let selectedAvatar = 'martin';
     let selectedColor = '#ffffff';
+    let heartbeatInterval = null;
 
     // Auto-load saved settings
     window.addEventListener('load', () => {
@@ -317,6 +319,15 @@
 
       setupMobileControls();
       initMultiplayerGlobal();
+
+      // Heartbeat: Enviar presencia cada 1000ms independientemente del movimiento
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      heartbeatInterval = setInterval(() => {
+        if (localPlayer.id && Object.keys(connections).length > 0) {
+          broadcast({ type: 'move', player: localPlayer, vehicles, isHeartbeat: true });
+        }
+      }, 1000);
+
       requestAnimationFrame(gameLoop);
     }
 
@@ -374,7 +385,6 @@
 
       conn.on('data', (data) => {
         if (data.type === 'leave') {
-          // Immediately purge leaving avatar
           delete players[data.id];
           updatePlayerList();
 
@@ -384,7 +394,7 @@
             }
           }
         } else if (data.type === 'sync' || data.type === 'move') {
-          data.player.lastSeen = Date.now(); // Timestamp heartbeat update
+          data.player.lastSeen = Date.now(); // Marca de tiempo actualizada con cada latido o movimiento
           players[data.player.id] = data.player;
           if (data.vehicles) vehicles = data.vehicles;
           
@@ -443,8 +453,8 @@
       let changed = false;
       for (let id in players) {
         if (id !== localPlayer.id) {
-          // Remove players who haven't sent state in over 4 seconds
-          if (players[id].lastSeen && now - players[id].lastSeen > 4000) {
+          // Remueve jugadores si no se reciben datos por más de 5 minutos (300,000 ms)
+          if (players[id].lastSeen && (now - players[id].lastSeen > PLAYER_TIMEOUT_MS)) {
             delete players[id];
             changed = true;
           }
@@ -590,7 +600,8 @@
         playFootstepSFX();
       }
 
-      if ((localPlayer.isMoving || animFrame % 60 === 0) && Object.keys(connections).length > 0) {
+      // Transmitir inmediatamente cuando se mueve (el Heartbeat se encarga del estado de reposo)
+      if (localPlayer.isMoving && Object.keys(connections).length > 0) {
         broadcast({ type: 'move', player: localPlayer, vehicles });
       }
     }
