@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Friends House</title>
+  <!-- PeerJS for free serverless WebRTC multiplayer -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
+    body { background: #000; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+    
+    /* Login Modal */
+    #setup-modal {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: #000; display: flex; flex-direction: column;
+      justify-content: center; align-items: center; z-index: 10;
+    }
+    .card { border: 2px solid #fff; padding: 24px; background: #000; text-align: center; width: 320px; }
+    input { width: 100%; padding: 10px; margin: 10px 0; background: #111; color: #fff; border: 1px solid #fff; outline: none; }
+    .avatar-options { display: flex; justify-content: space-between; margin: 15px 0; }
+    .avatar-btn { border: 1px solid #fff; padding: 10px; cursor: pointer; background: #111; flex: 1; margin: 0 4px; }
+    .avatar-btn.selected { background: #fff; color: #000; font-weight: bold; }
+    button.start { padding: 12px 20px; background: #fff; color: #000; border: none; font-weight: bold; cursor: pointer; width: 100%; }
+
+    /* Room Screen */
+    #game-container { position: relative; display: none; }
+    canvas { border: 2px solid #fff; background: #000; display: block; }
+    
+    /* Multiplayer UI & Chat */
+    #room-info { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); border: 1px solid #fff; padding: 8px; font-size: 11px; }
+    #chat-container {
+      position: absolute; bottom: 10px; left: 10px; width: 300px;
+      background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 8px;
+    }
+    #chat-logs { height: 90px; overflow-y: auto; font-size: 12px; margin-bottom: 6px; display: flex; flex-direction: column; gap: 4px; }
+    #chat-input { width: 100%; padding: 6px; background: #111; color: #fff; border: 1px solid #fff; outline: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Entry Setup Screen -->
+  <div id="setup-modal">
+    <div class="card">
+      <h2 style="margin-bottom: 12px;">FRIENDS HOUSE</h2>
+      <input type="text" id="username" placeholder="Your Name..." maxlength="12" />
+      <p style="font-size: 12px; margin-top: 6px;">Select Avatar:</p>
+      <div class="avatar-options">
+        <div class="avatar-btn selected" onclick="selectAvatar('rat', this)">🐀<br>Rat</div>
+        <div class="avatar-btn" onclick="selectAvatar('pig', this)">🐖<br>Pig</div>
+        <div class="avatar-btn" onclick="selectAvatar('guy', this)">🧍<br>Guy</div>
+      </div>
+      <input type="text" id="room-code" placeholder="Room Code (Leave blank to Host)" />
+      <button class="start" onclick="enterHouse()">ENTER APARTMENT</button>
+    </div>
+  </div>
+
+  <!-- Game Canvas & Overlay -->
+  <div id="game-container">
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="room-info">
+      <div>ROOM CODE: <span id="display-room-code" style="font-weight:bold;">---</span></div>
+      <div style="font-size: 9px; color: #aaa; margin-top:2px;">Share this code with friends to join!</div>
+    </div>
+    <div id="chat-container">
+      <div id="chat-logs"></div>
+      <input type="text" id="chat-input" placeholder="Type chat message and press Enter..." />
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let selectedAvatar = 'rat';
+    let localPlayer = { id: '', name: '', avatar: 'rat', x: 400, y: 250, speed: 4 };
+    let players = {}; 
+    let keys = {};
+    
+    // PeerJS Variables
+    let peer = null;
+    let connections = [];
+
+    // Wall Collisions Definition [x, y, width, height]
+    const walls = [
+      { x: 0, y: 0, w: 800, h: 10 },    // Top
+      { x: 0, y: 590, w: 800, h: 10 },  // Bottom
+      { x: 0, y: 0, w: 10, h: 600 },    // Left
+      { x: 790, y: 0, w: 10, h: 600 },  // Right
+      { x: 250, y: 360, w: 540, h: 8 }, // Main floor split
+      { x: 270, y: 360, w: 8, h: 230 }, // Bedroom 1 divider
+      { x: 530, y: 360, w: 8, h: 230 }  // Bedroom 2 divider
+    ];
+
+    function selectAvatar(type, el) {
+      selectedAvatar = type;
+      document.querySelectorAll('.avatar-btn').forEach(btn => btn.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+
+    function enterHouse() {
+      const name = document.getElementById('username').value.trim();
+      if (!name) return alert('Please enter your name!');
+      
+      localPlayer.name = name;
+      localPlayer.avatar = selectedAvatar;
+      
+      const targetRoom = document.getElementById('room-code').value.trim().toLowerCase();
+      
+      document.getElementById('setup-modal').style.display = 'none';
+      document.getElementById('game-container').style.display = 'block';
+
+      initMultiplayer(targetRoom);
+      requestAnimationFrame(gameLoop);
+    }
+
+    // WebRTC Peer-to-Peer Networking
+    function initMultiplayer(targetRoom) {
+      // Host generates room ID or uses target
+      const roomID = targetRoom || Math.random().toString(36).substring(2, 7);
+      localPlayer.id = Math.random().toString(36).substring(2, 7);
+      
+      document.getElementById('display-room-code').innerText = roomID;
+
+      peer = new Peer(targetRoom ? undefined : roomID);
+
+      peer.on('open', (id) => {
+        if (targetRoom) {
+          // Join existing room
+          let conn = peer.connect(targetRoom);
+          setupConnection(conn);
+        }
+      });
+
+      peer.on('connection', (conn) => {
+        // Host receives incoming connection
+        setupConnection(conn);
+      });
+    }
+
+    function setupConnection(conn) {
+      conn.on('open', () => {
+        connections.push(conn);
+        // Send initial state
+        conn.send({ type: 'join', player: localPlayer });
+      });
+
+      conn.on('data', (data) => {
+        if (data.type === 'move') {
+          players[data.player.id] = data.player;
+        } else if (data.type === 'chat') {
+          addChatMessage(data.name, data.message);
+        } else if (data.type === 'join') {
+          players[data.player.id] = data.player;
+          // Send back self info
+          conn.send({ type: 'move', player: localPlayer });
+        }
+      });
+    }
+
+    function broadcast(data) {
+      connections.forEach(conn => {
+        if (conn.open) conn.send(data);
+      });
+    }
+
+    // Key Listeners
+    window.addEventListener('keydown', e => keys[e.key] = true);
+    window.addEventListener('keyup', e => keys[e.key] = false);
+
+    // Chat Inputs
+    const chatInput = document.getElementById('chat-input');
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && chatInput.value.trim() !== '') {
+        const msg = chatInput.value.trim();
+        addChatMessage(localPlayer.name, msg);
+        broadcast({ type: 'chat', name: localPlayer.name, message: msg });
+        chatInput.value = '';
+      }
+    });
+
+    function addChatMessage(sender, text) {
+      const logs = document.getElementById('chat-logs');
+      logs.innerHTML += `<div><strong>${sender}:</strong> ${text}</div>`;
+      logs.scrollTop = logs.scrollHeight;
+    }
+
+    // Collision Logic
+    function checkCollision(newX, newY, radius) {
+      for (let wall of walls) {
+        let closestX = Math.max(wall.x, Math.min(newX, wall.x + wall.w));
+        let closestY = Math.max(wall.y, Math.min(newY, wall.y + wall.h));
+        let distX = newX - closestX;
+        let distY = newY - closestY;
+        if (Math.sqrt((distX * distX) + (distY * distY)) < radius) return true;
+      }
+      return false;
+    }
+
+    function update() {
+      let nextX = localPlayer.x;
+      let nextY = localPlayer.y;
+
+      if (keys['ArrowUp'] || keys['w']) nextY -= localPlayer.speed;
+      if (keys['ArrowDown'] || keys['s']) nextY += localPlayer.speed;
+      if (keys['ArrowLeft'] || keys['a']) nextX -= localPlayer.speed;
+      if (keys['ArrowRight'] || keys['d']) nextX += localPlayer.speed;
+
+      let moved = false;
+      if (!checkCollision(nextX, localPlayer.y, 14)) { localPlayer.x = nextX; moved = true; }
+      if (!checkCollision(localPlayer.x, nextY, 14)) { localPlayer.y = nextY; moved = true; }
+
+      if (moved && connections.length > 0) {
+        broadcast({ type: 'move', player: localPlayer });
+      }
+    }
+
+    // Render Layout & Avatars
+    function drawApartment() {
+      ctx.strokeStyle = '#fff';
+      ctx.fillStyle = '#fff';
+      ctx.lineWidth = 2;
+
+      // Draw Walls
+      walls.forEach(w => ctx.strokeRect(w.x, w.y, w.w, w.h));
+
+      // Kitchen
+      ctx.strokeRect(640, 20, 130, 90);
+      ctx.fillText("KITCHEN", 675, 65);
+
+      // Living Room Table
+      ctx.strokeRect(380, 150, 120, 70);
+      ctx.fillText("TABLE", 420, 190);
+
+      // TV & Couch
+      ctx.strokeRect(270, 50, 10, 100);
+      ctx.fillText("TV", 265, 40);
+      ctx.strokeRect(310, 60, 40, 80);
+      ctx.fillText("COUCH", 310, 155);
+
+      // 3 Bedrooms
+      ctx.fillText("BEDROOM 1", 30, 390);
+      ctx.fillText("BEDROOM 2", 290, 390);
+      ctx.fillText("BEDROOM 3", 550, 390);
+
+      // Bathrooms
+      ctx.strokeRect(200, 360, 60, 60); ctx.fillText("BATH", 212, 395);
+      ctx.strokeRect(460, 360, 60, 60); ctx.fillText("BATH", 472, 395);
+      ctx.strokeRect(720, 360, 60, 60); ctx.fillText("BATH", 732, 395);
+    }
+
+    function drawAvatar(p) {
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+
+      ctx.beginPath();
+      if (p.avatar === 'rat') {
+        ctx.arc(p.x, p.y, 12, 0, Math.PI * 2);
+        ctx.arc(p.x - 8, p.y - 10, 5, 0, Math.PI * 2);
+        ctx.arc(p.x + 8, p.y - 10, 5, 0, Math.PI * 2);
+      } else if (p.avatar === 'pig') {
+        ctx.rect(p.x - 12, p.y - 12, 24, 24);
+        ctx.rect(p.x - 4, p.y - 4, 8, 8);
+      } else {
+        ctx.arc(p.x, p.y - 6, 8, 0, Math.PI * 2);
+        ctx.rect(p.x - 8, p.y + 2, 16, 16);
+      }
+      ctx.stroke();
+
+      ctx.font = '12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(p.name, p.x, p.y - 20);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawApartment();
+      
+      // Draw local player
+      drawAvatar(localPlayer);
+
+      // Draw remote peers
+      for (let id in players) {
+        if (id !== localPlayer.id) drawAvatar(players[id]);
+      }
+    }
+
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+  </script>
+</body>
+</html>
