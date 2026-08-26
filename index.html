@@ -2,39 +2,87 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Friends House</title>
   <!-- PeerJS for free serverless WebRTC multiplayer -->
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
-    body { background: #000; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; touch-action: manipulation; }
+    body { background: #000; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
     
     /* Login Modal */
     #setup-modal {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: #000; display: flex; flex-direction: column;
-      justify-content: center; align-items: center; z-index: 10;
+      justify-content: center; align-items: center; z-index: 10; padding: 15px;
     }
-    .card { border: 2px solid #fff; padding: 24px; background: #000; text-align: center; width: 320px; }
-    input { width: 100%; padding: 10px; margin: 10px 0; background: #111; color: #fff; border: 1px solid #fff; outline: none; }
-    .avatar-options { display: flex; justify-content: space-between; margin: 15px 0; }
-    .avatar-btn { border: 1px solid #fff; padding: 10px; cursor: pointer; background: #111; flex: 1; margin: 0 4px; }
+    .card { border: 2px solid #fff; padding: 20px; background: #000; text-align: center; width: 100%; max-width: 340px; }
+    input { width: 100%; padding: 10px; margin: 8px 0; background: #111; color: #fff; border: 1px solid #fff; outline: none; font-size: 14px; }
+    .avatar-options { display: flex; justify-content: space-between; margin: 12px 0; }
+    .avatar-btn { border: 1px solid #fff; padding: 8px; cursor: pointer; background: #111; flex: 1; margin: 0 3px; font-size: 12px; }
     .avatar-btn.selected { background: #fff; color: #000; font-weight: bold; }
-    button.start { padding: 12px 20px; background: #fff; color: #000; border: none; font-weight: bold; cursor: pointer; width: 100%; }
+    button.start { padding: 12px; background: #fff; color: #000; border: none; font-weight: bold; cursor: pointer; width: 100%; font-size: 14px; margin-top: 5px; }
 
-    /* Room Screen */
-    #game-container { position: relative; display: none; }
-    canvas { border: 2px solid #fff; background: #000; display: block; }
-    
-    /* Multiplayer UI & Chat */
-    #room-info { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 8px; font-size: 11px; }
-    #chat-container {
-      position: absolute; bottom: 10px; left: 10px; width: 300px;
-      background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 8px;
+    /* Game Wrapper */
+    #game-container { 
+      position: relative; 
+      display: none; 
+      width: 100vw; 
+      max-width: 800px; 
+      margin: 0 auto;
     }
-    #chat-logs { height: 90px; overflow-y: auto; font-size: 12px; margin-bottom: 6px; display: flex; flex-direction: column; gap: 4px; }
-    #chat-input { width: 100%; padding: 6px; background: #111; color: #fff; border: 1px solid #fff; outline: none; }
+
+    /* Responsive Canvas Aspect Ratio */
+    .canvas-wrapper {
+      position: relative;
+      width: 100%;
+      padding-top: 75%; /* 4:3 Aspect Ratio (600 / 800) */
+    }
+
+    canvas { 
+      position: absolute;
+      top: 0; left: 0;
+      width: 100% !important; 
+      height: 100% !important; 
+      border: 2px solid #fff; 
+      background: #000; 
+      display: block; 
+    }
+    
+    /* Overlay UI */
+    #room-info { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; font-size: 10px; z-index: 2; }
+    
+    /* Chat Box */
+    #chat-container {
+      position: absolute; bottom: 8px; left: 8px; width: 200px; max-width: 50%;
+      background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; z-index: 2;
+    }
+    #chat-logs { height: 60px; overflow-y: auto; font-size: 10px; margin-bottom: 4px; display: flex; flex-direction: column; gap: 2px; }
+    #chat-input { width: 100%; padding: 4px; background: #111; color: #fff; border: 1px solid #fff; outline: none; font-size: 10px; }
+
+    /* Mobile On-Screen D-Pad */
+    #dpad {
+      display: grid;
+      grid-template-columns: repeat(3, 45px);
+      grid-template-rows: repeat(3, 45px);
+      gap: 5px;
+      justify-content: center;
+      margin: 10px auto 0;
+      user-select: none;
+    }
+    .dbtn {
+      background: #111;
+      border: 1px solid #fff;
+      color: #fff;
+      font-size: 18px;
+      font-weight: bold;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .dbtn:active { background: #fff; color: #000; }
   </style>
 </head>
 <body>
@@ -42,29 +90,44 @@
   <!-- Entry Setup Screen -->
   <div id="setup-modal">
     <div class="card">
-      <h2 style="margin-bottom: 12px;">FRIENDS HOUSE</h2>
+      <h2 style="margin-bottom: 8px;">FRIENDS HOUSE</h2>
       <input type="text" id="username" placeholder="Your Name..." maxlength="12" />
-      <p style="font-size: 12px; margin-top: 6px;">Select Avatar:</p>
+      <p style="font-size: 11px; margin-top: 4px;">Select Avatar:</p>
       <div class="avatar-options">
         <div class="avatar-btn selected" onclick="selectAvatar('rat', this)">🐀<br>Rat</div>
         <div class="avatar-btn" onclick="selectAvatar('pig', this)">🐖<br>Pig</div>
         <div class="avatar-btn" onclick="selectAvatar('guy', this)">🧍<br>Guy</div>
       </div>
-      <input type="text" id="room-code" placeholder="Room Code (Leave blank to Host)" />
+      <input type="text" id="room-code" placeholder="Room Code (Blank to Host)" />
       <button class="start" onclick="enterHouse()">ENTER APARTMENT</button>
     </div>
   </div>
 
-  <!-- Game Canvas & Overlay -->
+  <!-- Game Screen -->
   <div id="game-container">
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-    <div id="room-info">
-      <div>ROOM CODE: <span id="display-room-code" style="font-weight:bold;">---</span></div>
-      <div id="status-tag" style="font-size: 10px; color: #0f0; margin-top:2px;">Connecting...</div>
+    <div class="canvas-wrapper">
+      <canvas id="gameCanvas" width="800" height="600"></canvas>
+      <div id="room-info">
+        <div>ROOM: <span id="display-room-code" style="font-weight:bold;">---</span></div>
+        <div id="status-tag" style="font-size: 9px; color: #0f0; margin-top:2px;">Connecting...</div>
+      </div>
+      <div id="chat-container">
+        <div id="chat-logs"></div>
+        <input type="text" id="chat-input" placeholder="Chat..." />
+      </div>
     </div>
-    <div id="chat-container">
-      <div id="chat-logs"></div>
-      <input type="text" id="chat-input" placeholder="Type chat message and press Enter..." />
+
+    <!-- Touch Controls for Mobile -->
+    <div id="dpad">
+      <div></div>
+      <div class="dbtn" id="btn-up">▲</div>
+      <div></div>
+      <div class="dbtn" id="btn-left">◀</div>
+      <div></div>
+      <div class="dbtn" id="btn-right">▶</div>
+      <div></div>
+      <div class="dbtn" id="btn-down">▼</div>
+      <div></div>
     </div>
   </div>
 
@@ -109,8 +172,27 @@
       document.getElementById('setup-modal').style.display = 'none';
       document.getElementById('game-container').style.display = 'block';
 
+      setupMobileControls();
       initMultiplayer(targetRoom);
       requestAnimationFrame(gameLoop);
+    }
+
+    function setupMobileControls() {
+      const bindTouch = (id, keyName) => {
+        const btn = document.getElementById(id);
+        const start = (e) => { e.preventDefault(); keys[keyName] = true; };
+        const end = (e) => { e.preventDefault(); keys[keyName] = false; };
+        
+        btn.addEventListener('touchstart', start, { passive: false });
+        btn.addEventListener('touchend', end, { passive: false });
+        btn.addEventListener('mousedown', start);
+        btn.addEventListener('mouseup', end);
+      };
+
+      bindTouch('btn-up', 'ArrowUp');
+      bindTouch('btn-down', 'ArrowDown');
+      bindTouch('btn-left', 'ArrowLeft');
+      bindTouch('btn-right', 'ArrowRight');
     }
 
     function initMultiplayer(targetRoom) {
@@ -119,11 +201,10 @@
       
       document.getElementById('display-room-code').innerText = roomID;
 
-      // Host registers roomID as peer ID, Client registers random ID
       peer = new Peer(isHost ? roomID : undefined);
 
       peer.on('open', (id) => {
-        document.getElementById('status-tag').innerText = isHost ? "HOSTING ROOM" : "CONNECTED TO ROOM";
+        document.getElementById('status-tag').innerText = isHost ? "HOSTING" : "CONNECTED";
         if (!isHost) {
           let conn = peer.connect(roomID);
           bindConnectionEvents(conn);
@@ -138,15 +219,12 @@
     function bindConnectionEvents(conn) {
       conn.on('open', () => {
         connections[conn.peer] = conn;
-        // Immediately send self info to new peer
         conn.send({ type: 'sync', player: localPlayer });
       });
 
       conn.on('data', (data) => {
         if (data.type === 'sync' || data.type === 'move') {
           players[data.player.id] = data.player;
-          
-          // If receiving sync, send back self info to ensure 2-way handshake
           if (data.type === 'sync') {
             conn.send({ type: 'move', player: localPlayer });
           }
@@ -168,10 +246,11 @@
       }
     }
 
-    // Controls & Chat
+    // Keyboard Controls
     window.addEventListener('keydown', e => keys[e.key] = true);
     window.addEventListener('keyup', e => keys[e.key] = false);
 
+    // Chat Box
     const chatInput = document.getElementById('chat-input');
     chatInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && chatInput.value.trim() !== '') {
@@ -212,7 +291,6 @@
       if (!checkCollision(nextX, localPlayer.y, 14)) { localPlayer.x = nextX; moved = true; }
       if (!checkCollision(localPlayer.x, nextY, 14)) { localPlayer.y = nextY; moved = true; }
 
-      // Always broadcast movement when keys are pressed
       if (moved && Object.keys(connections).length > 0) {
         broadcast({ type: 'move', player: localPlayer });
       }
