@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Friends Neighborhood - Personal Homes</title>
+  <title>Friends Neighborhood - Personal Homes & Shop</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; touch-action: manipulation; }
@@ -42,8 +42,19 @@
     #chat-input { width: 100%; padding: 4px; background: #111; color: #fff; border: 1px solid #fff; outline: none; font-size: 10px; text-align: left; }
 
     #emote-bar { position: absolute; bottom: 8px; right: 8px; display: flex; gap: 4px; z-index: 2; }
-    .emote-btn { background: #111; border: 1px solid #fff; padding: 4px 8px; cursor: pointer; font-size: 14px; color: #fff; }
-    .emote-btn:active { background: #fff; }
+    .emote-btn { background: #111; border: 1px solid #fff; padding: 4px 8px; cursor: pointer; font-size: 12px; color: #fff; }
+    .emote-btn:active { background: #fff; color: #000; }
+
+    /* Ventanas Modales: Tienda e Inventario */
+    .game-modal {
+      display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 280px; background: rgba(0, 0, 0, 0.95); border: 2px solid #fff; padding: 12px; z-index: 5;
+    }
+    .game-modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #fff; padding-bottom: 4px; margin-bottom: 8px; font-weight: bold; font-size: 12px; }
+    .close-btn { cursor: pointer; color: #f00; font-weight: bold; }
+    .item-list { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
+    .item-row { display: flex; justify-content: space-between; align-items: center; background: #111; border: 1px solid #444; padding: 6px; font-size: 10px; }
+    .item-row button { background: #fff; color: #000; border: none; font-weight: bold; padding: 2px 6px; cursor: pointer; }
 
     #controls-container { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding: 0 10px; }
     #dpad { display: grid; grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(3, 42px); gap: 4px; user-select: none; }
@@ -85,7 +96,7 @@
       </div>
 
       <button class="start" onclick="enterHouse()">ENTER WORLD</button>
-      <div id="version-tag">Build: v1.6.3 (UI & Chat Bubble Enhancements)</div>
+      <div id="version-tag">Build: v1.7.0 (Economy, Shop & Inventory System)</div>
     </div>
   </div>
 
@@ -96,6 +107,7 @@
       <div id="room-info">
         <div>WORLD: <span id="display-room-code" style="font-weight:bold; color:#0f0;">MAIN-TOWN</span></div>
         <div id="location-tag" style="font-weight:bold; color:#0f0; margin-top:2px;">HOME</div>
+        <div id="coins-tag" style="font-weight:bold; color:#ff0; margin-top:2px;">💰 COINS: $100</div>
         <div id="status-tag" style="font-size: 9px; color: #0f0; margin-top:2px;">Connecting...</div>
       </div>
 
@@ -116,10 +128,28 @@
       </div>
 
       <div id="emote-bar">
+        <button class="emote-btn" onclick="toggleShop()">🛒 Shop (B)</button>
+        <button class="emote-btn" onclick="toggleInventory()">🎒 Inv (I)</button>
         <button class="emote-btn" onclick="sendEmote('👋')">👋</button>
         <button class="emote-btn" onclick="sendEmote('❤️')">❤️</button>
-        <button class="emote-btn" onclick="sendEmote('😂')">😂</button>
-        <button class="emote-btn" onclick="sendEmote('🎵')">🎵</button>
+      </div>
+
+      <!-- Ventana Modal de Tienda -->
+      <div id="shop-modal" class="game-modal">
+        <div class="game-modal-header">
+          <span>TOWN SHOP 🛒</span>
+          <span class="close-btn" onclick="toggleShop()">[X]</span>
+        </div>
+        <div id="shop-item-list" class="item-list"></div>
+      </div>
+
+      <!-- Ventana Modal de Inventario -->
+      <div id="inventory-modal" class="game-modal">
+        <div class="game-modal-header">
+          <span>MY INVENTORY 🎒</span>
+          <span class="close-btn" onclick="toggleInventory()">[X]</span>
+        </div>
+        <div id="inventory-item-list" class="item-list"></div>
       </div>
     </div>
 
@@ -137,13 +167,22 @@
   </div>
 
   <script>
-    const GAME_VERSION = "1.6.3";
+    const GAME_VERSION = "1.7.0";
     const PLAYER_TIMEOUT_MS = 5 * 60 * 1000;
     let activeWorldRoom = "main-town";
 
     let selectedAvatar = 'martin';
     let selectedColor = '#ffffff';
     let heartbeatInterval = null;
+
+    // Catálogo de la Tienda
+    const SHOP_CATALOG = [
+      { id: 'plant1', name: '🪴 House Plant', price: 30, type: 'furniture' },
+      { id: 'tv1', name: '📺 Plasma TV', price: 80, type: 'furniture' },
+      { id: 'bed1', name: '🛏️ Cozy Bed', price: 120, type: 'furniture' },
+      { id: 'skate1', name: '🛹 Skateboard', price: 150, type: 'vehicle', speed: 11 },
+      { id: 'dog1', name: '🐶 Puppy Pet', price: 200, type: 'pet' }
+    ];
 
     window.addEventListener('load', () => {
       const savedName = localStorage.getItem('nh_name');
@@ -210,6 +249,7 @@
     function playVehicleSFX() { playAudioTone(80 + Math.random()*20, 'sawtooth', 0.06, 0.03); }
     function playDoorSFX() { playAudioTone(150, 'sine', 0.15, 0.05); setTimeout(() => playAudioTone(300, 'sine', 0.2, 0.05), 100); }
     function playChatChime() { playAudioTone(587.33, 'sine', 0.08, 0.04); setTimeout(() => playAudioTone(880, 'sine', 0.12, 0.04), 80); }
+    function playCoinSFX() { playAudioTone(987.77, 'sine', 0.08, 0.05); setTimeout(() => playAudioTone(1318.51, 'sine', 0.15, 0.05), 60); }
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -219,7 +259,8 @@
 
     let localPlayer = { 
       id: '', name: 'Player', avatar: 'martin', color: '#ffffff', x: 400, y: 450, speed: 4, radius: 12,
-      dir: 'down', isMoving: false, location: 'house_martin', vehicle: null, bubble: null, emote: null
+      dir: 'down', isMoving: false, location: 'house_martin', vehicle: null, bubble: null, emote: null,
+      coins: 100, inventory: []
     };
     
     let players = {}; 
@@ -228,6 +269,14 @@
     let connections = {};
     let isHost = false;
     let animFrame = 0;
+
+    // Monedas flotantes en el mapa público
+    let mapCoins = [
+      { id: 'c1', x: 600, y: 550, active: true },
+      { id: 'c2', x: 1300, y: 550, active: true },
+      { id: 'c3', x: 1700, y: 800, active: true },
+      { id: 'c4', x: 900, y: 1200, active: true }
+    ];
 
     const houses = [
       { id: 'house_martin', name: "Martin's House", owner: 'martin', x: 100, y: 100, w: 400, h: 300, doorX: 300, doorY: 400, exitX: 300, exitY: 430, furniture: '🕶️ Martin Studio' },
@@ -259,6 +308,76 @@
       { x: 450, y: 490, w: 250, h: 10 },
       { x: 250, y: 200, w: 300, h: 100 }
     ];
+
+    function updateCoinsDisplay() {
+      document.getElementById('coins-tag').innerText = `💰 COINS: $${localPlayer.coins}`;
+      localStorage.setItem('nh_coins', localPlayer.coins);
+      localStorage.setItem('nh_inventory', JSON.stringify(localPlayer.inventory));
+    }
+
+    function toggleShop() {
+      const modal = document.getElementById('shop-modal');
+      const isVisible = modal.style.display === 'block';
+      modal.style.display = isVisible ? 'none' : 'block';
+      if (!isVisible) renderShop();
+    }
+
+    function toggleInventory() {
+      const modal = document.getElementById('inventory-modal');
+      const isVisible = modal.style.display === 'block';
+      modal.style.display = isVisible ? 'none' : 'block';
+      if (!isVisible) renderInventory();
+    }
+
+    function renderShop() {
+      const container = document.getElementById('shop-item-list');
+      container.innerHTML = '';
+      SHOP_CATALOG.forEach(item => {
+        const owned = localPlayer.inventory.some(i => i.id === item.id);
+        const div = document.createElement('div');
+        div.className = 'item-row';
+        div.innerHTML = `
+          <span>${item.name} ($${item.price})</span>
+          <button onclick="buyItem('${item.id}')" ${owned ? 'disabled style="opacity:0.5"' : ''}>
+            ${owned ? 'OWNED' : 'BUY'}
+          </button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function buyItem(itemId) {
+      const item = SHOP_CATALOG.find(i => i.id === itemId);
+      if (!item) return;
+      if (localPlayer.coins >= item.price) {
+        localPlayer.coins -= item.price;
+        localPlayer.inventory.push(item);
+        updateCoinsDisplay();
+        renderShop();
+        playCoinSFX();
+        addChatMessage("SYSTEM", `Purchased ${item.name}!`);
+      } else {
+        addChatMessage("SYSTEM", "Not enough coins!");
+      }
+    }
+
+    function renderInventory() {
+      const container = document.getElementById('inventory-item-list');
+      container.innerHTML = '';
+      if (localPlayer.inventory.length === 0) {
+        container.innerHTML = '<div style="font-size:10px; color:#aaa; text-align:center;">Empty Backpack</div>';
+        return;
+      }
+      localPlayer.inventory.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'item-row';
+        div.innerHTML = `
+          <span>${item.name} (${item.type.toUpperCase()})</span>
+          <span style="font-size:9px; color:#0f0;">READY</span>
+        `;
+        container.appendChild(div);
+      });
+    }
 
     function toggleChat() {
       const chatContainer = document.getElementById('chat-container');
@@ -304,6 +423,14 @@
       localPlayer.x = 400;
       localPlayer.y = 450;
 
+      const savedCoins = localStorage.getItem('nh_coins');
+      if (savedCoins) localPlayer.coins = parseInt(savedCoins, 10);
+      const savedInv = localStorage.getItem('nh_inventory');
+      if (savedInv) {
+        try { localPlayer.inventory = JSON.parse(savedInv); } catch(e){}
+      }
+      updateCoinsDisplay();
+
       localStorage.setItem('nh_name', localPlayer.name);
       localStorage.setItem('nh_avatar', selectedAvatar);
       localStorage.setItem('nh_color', selectedColor);
@@ -343,7 +470,7 @@
     }
 
     function initMultiplayerGlobal() {
-      const hostRoomId = `nh-${activeWorldRoom}-host-v16`;
+      const hostRoomId = `nh-${activeWorldRoom}-host-v17`;
       const joinDelay = Math.floor(Math.random() * 300);
 
       setTimeout(() => {
@@ -474,6 +601,8 @@
       if (document.activeElement === document.getElementById('chat-input')) return;
       keys[e.key] = true;
       if (e.key === 'e' || e.key === 'E') triggerInteraction();
+      if (e.key === 'b' || e.key === 'B') toggleShop();
+      if (e.key === 'i' || e.key === 'I') toggleInventory();
     });
     window.addEventListener('keyup', e => {
       if (document.activeElement === document.getElementById('chat-input')) return;
@@ -565,6 +694,23 @@
       return false;
     }
 
+    function checkCoinPickups() {
+      if (localPlayer.location !== 'world') return;
+      mapCoins.forEach(coin => {
+        if (coin.active && Math.hypot(localPlayer.x - coin.x, localPlayer.y - coin.y) < 25) {
+          coin.active = false;
+          localPlayer.coins += 10;
+          updateCoinsDisplay();
+          playCoinSFX();
+          setTimeout(() => {
+            coin.x = Math.floor(Math.random() * (WORLD_WIDTH - 200)) + 100;
+            coin.y = Math.floor(Math.random() * (WORLD_HEIGHT - 200)) + 100;
+            coin.active = true;
+          }, 10000);
+        }
+      });
+    }
+
     function update() {
       animFrame++;
       cleanupGhostPlayers();
@@ -587,6 +733,8 @@
 
       if (!checkWallCollision(nextX, localPlayer.y, localPlayer.radius)) localPlayer.x = nextX;
       if (!checkWallCollision(localPlayer.x, nextY, localPlayer.radius)) localPlayer.y = nextY;
+
+      checkCoinPickups();
 
       if (localPlayer.vehicle) {
         let v = vehicles.find(item => item.id === localPlayer.vehicle);
@@ -630,6 +778,14 @@
           ctx.fillText(v.icon, v.x, v.y);
         }
       });
+
+      // Monedas flotantes
+      mapCoins.forEach(coin => {
+        if (coin.active) {
+          ctx.font = '16px monospace'; ctx.textAlign = 'center';
+          ctx.fillText('🪙', coin.x, coin.y + Math.sin(animFrame * 0.1) * 3);
+        }
+      });
     }
 
     function drawHouseInterior() {
@@ -647,92 +803,89 @@
     }
 
     function drawAvatar(p) {
-  ctx.fillStyle = p.color || '#ffffff';
-  ctx.strokeStyle = p.color || '#ffffff';
-  ctx.lineWidth = 2;
+      ctx.fillStyle = p.color || '#ffffff';
+      ctx.strokeStyle = p.color || '#ffffff';
+      ctx.lineWidth = 2;
 
-  let bobY = (p.isMoving && !p.vehicle) ? Math.sin(animFrame * 0.3) * 3 : 0;
-  let renderY = p.y + bobY;
+      let bobY = (p.isMoving && !p.vehicle) ? Math.sin(animFrame * 0.3) * 3 : 0;
+      let renderY = p.y + bobY;
 
-  // 1. DIBUJAR CUERPO Y CABEZA
-  if (!p.vehicle) {
-    ctx.beginPath();
-    if (p.avatar === 'martin') {
-      ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
-      ctx.rect(p.x - 8, renderY + 6, 16, 12);
-      ctx.stroke();
-      ctx.fillRect(p.x - 6, renderY - 6, 12, 4);
-    } else if (p.avatar === 'gaby') {
-      ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
-      ctx.rect(p.x - 8, renderY + 6, 16, 12);
-      ctx.stroke();
-      ctx.fillRect(p.x - 12, renderY - 8, 4, 8);
-      ctx.fillRect(p.x + 8, renderY - 8, 4, 8);
-    } else {
-      ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
-      ctx.rect(p.x - 8, renderY + 6, 16, 12);
-      ctx.stroke();
-      ctx.fillRect(p.x - 10, renderY - 12, 16, 3);
+      // 1. DIBUJAR CUERPO Y CABEZA
+      if (!p.vehicle) {
+        ctx.beginPath();
+        if (p.avatar === 'martin') {
+          ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
+          ctx.rect(p.x - 8, renderY + 6, 16, 12);
+          ctx.stroke();
+          ctx.fillRect(p.x - 6, renderY - 6, 12, 4);
+        } else if (p.avatar === 'gaby') {
+          ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
+          ctx.rect(p.x - 8, renderY + 6, 16, 12);
+          ctx.stroke();
+          ctx.fillRect(p.x - 12, renderY - 8, 4, 8);
+          ctx.fillRect(p.x + 8, renderY - 8, 4, 8);
+        } else {
+          ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
+          ctx.rect(p.x - 8, renderY + 6, 16, 12);
+          ctx.stroke();
+          ctx.fillRect(p.x - 10, renderY - 12, 16, 3);
+        }
+      }
+
+      // 2. DIBUJAR NOMBRE (ABAJO del personaje)
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '11px monospace'; 
+      ctx.textAlign = 'center';
+      ctx.fillText(p.name, p.x, renderY + 26);
+
+      // 3. DIBUJAR GLOBO DE CHAT (ARRIBA del personaje)
+      if (p.bubble && Date.now() < p.bubble.timer) {
+        const maxLen = 14;
+        let displayMsg = p.bubble.text;
+        if (displayMsg.length > maxLen) {
+          displayMsg = displayMsg.substring(0, maxLen) + '...';
+        }
+
+        ctx.font = '10px monospace';
+        let textWidth = ctx.measureText(displayMsg).width;
+        let boxWidth = Math.max(textWidth + 12, 28);
+        let boxHeight = 18;
+        let bubbleX = p.x - boxWidth / 2;
+        let bubbleY = renderY - 32;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(bubbleX, bubbleY, boxWidth, boxHeight);
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(bubbleX, bubbleY, boxWidth, boxHeight);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(p.x - 4, bubbleY + boxHeight);
+        ctx.lineTo(p.x + 4, bubbleY + boxHeight);
+        ctx.lineTo(p.x, bubbleY + boxHeight + 4);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = '#000000';
+        ctx.beginPath();
+        ctx.moveTo(p.x - 4, bubbleY + boxHeight);
+        ctx.lineTo(p.x, bubbleY + boxHeight + 4);
+        ctx.lineTo(p.x + 4, bubbleY + boxHeight);
+        ctx.stroke();
+
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'center';
+        ctx.fillText(displayMsg, p.x, bubbleY + 13);
+      }
+
+      // 4. DIBUJAR EMOTE
+      if (p.emote && Date.now() < p.emote.timer) {
+        ctx.font = '16px monospace'; 
+        ctx.textAlign = 'center';
+        ctx.fillText(p.emote.symbol, p.x, renderY - 40);
+      }
     }
-  }
-
-  // 2. DIBUJAR NOMBRE (Estrictamente ABAJO del personaje)
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '11px monospace'; 
-  ctx.textAlign = 'center';
-  ctx.fillText(p.name, p.x, renderY + 26);
-
-  // 3. DIBUJAR GLOBO DE CHAT (ARRIBA del personaje)
-  if (p.bubble && Date.now() < p.bubble.timer) {
-    const maxLen = 14;
-    let displayMsg = p.bubble.text;
-    if (displayMsg.length > maxLen) {
-      displayMsg = displayMsg.substring(0, maxLen) + '...';
-    }
-
-    ctx.font = '10px monospace';
-    let textWidth = ctx.measureText(displayMsg).width;
-    let boxWidth = Math.max(textWidth + 12, 28);
-    let boxHeight = 18;
-    let bubbleX = p.x - boxWidth / 2;
-    let bubbleY = renderY - 32;
-
-    // Fondo del globo
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(bubbleX, bubbleY, boxWidth, boxHeight);
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(bubbleX, bubbleY, boxWidth, boxHeight);
-
-    // Flechita apuntando abajo
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.moveTo(p.x - 4, bubbleY + boxHeight);
-    ctx.lineTo(p.x + 4, bubbleY + boxHeight);
-    ctx.lineTo(p.x, bubbleY + boxHeight + 4);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.strokeStyle = '#000000';
-    ctx.beginPath();
-    ctx.moveTo(p.x - 4, bubbleY + boxHeight);
-    ctx.lineTo(p.x, bubbleY + boxHeight + 4);
-    ctx.lineTo(p.x + 4, bubbleY + boxHeight);
-    ctx.stroke();
-
-    // Texto del mensaje
-    ctx.fillStyle = '#000000';
-    ctx.textAlign = 'center';
-    ctx.fillText(displayMsg, p.x, bubbleY + 13);
-  }
-
-  // 4. DIBUJAR EMOTE (POR ENCIMA DEL GLOBO)
-  if (p.emote && Date.now() < p.emote.timer) {
-    ctx.font = '16px monospace'; 
-    ctx.textAlign = 'center';
-    ctx.fillText(p.emote.symbol, p.x, renderY - 40);
-  }
-}
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
