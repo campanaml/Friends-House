@@ -29,7 +29,6 @@
     .canvas-wrapper { position: relative; width: 100%; padding-top: 75%; }
     canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; border: 2px solid #fff; background: #000; display: block; }
     
-    /* Contenedor de Notificaciones Flotantes */
     #notification-container {
       position: absolute;
       top: 15px;
@@ -81,7 +80,6 @@
     .emote-btn { background: #111; border: 1px solid #fff; padding: 4px 8px; cursor: pointer; font-size: 12px; color: #fff; }
     .emote-btn:active { background: #fff; color: #000; }
 
-    /* Ventanas Modales: Tienda e Inventario */
     .game-modal {
       display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
       width: 280px; background: rgba(0, 0, 0, 0.95); border: 2px solid #fff; padding: 12px; z-index: 5;
@@ -132,7 +130,7 @@
       </div>
 
       <button class="start" onclick="enterHouse()">ENTER WORLD</button>
-      <div id="version-tag">Build: v1.7.0 (Economy, Shop & Toast System)</div>
+      <div id="version-tag">Build: v1.7.1 (Isolated Inventory & Toast Fix)</div>
     </div>
   </div>
 
@@ -172,7 +170,6 @@
         <button class="emote-btn" onclick="sendEmote('❤️')">❤️</button>
       </div>
 
-      <!-- Ventana Modal de Tienda -->
       <div id="shop-modal" class="game-modal">
         <div class="game-modal-header">
           <span>TOWN SHOP 🛒</span>
@@ -181,7 +178,6 @@
         <div id="shop-item-list" class="item-list"></div>
       </div>
 
-      <!-- Ventana Modal de Inventario -->
       <div id="inventory-modal" class="game-modal">
         <div class="game-modal-header">
           <span>MY INVENTORY 🎒</span>
@@ -205,7 +201,7 @@
   </div>
 
   <script>
-    const GAME_VERSION = "1.7.0";
+    const GAME_VERSION = "1.7.1";
     const PLAYER_TIMEOUT_MS = 5 * 60 * 1000;
     let activeWorldRoom = "main-town";
 
@@ -213,7 +209,6 @@
     let selectedColor = '#ffffff';
     let heartbeatInterval = null;
 
-    // Catálogo de la Tienda
     const SHOP_CATALOG = [
       { id: 'plant1', name: '🪴 House Plant', price: 30, type: 'furniture' },
       { id: 'tv1', name: '📺 Plasma TV', price: 80, type: 'furniture' },
@@ -308,7 +303,6 @@
     let isHost = false;
     let animFrame = 0;
 
-    // Monedas flotantes en el mapa público
     let mapCoins = [
       { id: 'c1', x: 600, y: 550, active: true },
       { id: 'c2', x: 1300, y: 550, active: true },
@@ -364,8 +358,10 @@
 
     function updateCoinsDisplay() {
       document.getElementById('coins-tag').innerText = `💰 COINS: $${localPlayer.coins}`;
-      localStorage.setItem('nh_coins', localPlayer.coins);
-      localStorage.setItem('nh_inventory', JSON.stringify(localPlayer.inventory));
+      if (localPlayer.name) {
+        localStorage.setItem(`nh_coins_${localPlayer.name}`, localPlayer.coins);
+        localStorage.setItem(`nh_inventory_${localPlayer.name}`, JSON.stringify(localPlayer.inventory));
+      }
     }
 
     function toggleShop() {
@@ -476,12 +472,25 @@
       localPlayer.x = 400;
       localPlayer.y = 450;
 
-      const savedCoins = localStorage.getItem('nh_coins');
-      if (savedCoins) localPlayer.coins = parseInt(savedCoins, 10);
-      const savedInv = localStorage.getItem('nh_inventory');
-      if (savedInv) {
-        try { localPlayer.inventory = JSON.parse(savedInv); } catch(e){}
+      // Carga aislada de monedas e inventario por usuario específico
+      const savedCoins = localStorage.getItem(`nh_coins_${localPlayer.name}`);
+      if (savedCoins !== null) {
+        localPlayer.coins = parseInt(savedCoins, 10);
+      } else {
+        localPlayer.coins = 100;
       }
+
+      const savedInv = localStorage.getItem(`nh_inventory_${localPlayer.name}`);
+      if (savedInv) {
+        try { 
+          localPlayer.inventory = JSON.parse(savedInv); 
+        } catch(e) { 
+          localPlayer.inventory = []; 
+        }
+      } else {
+        localPlayer.inventory = [];
+      }
+
       updateCoinsDisplay();
 
       localStorage.setItem('nh_name', localPlayer.name);
@@ -573,6 +582,7 @@
           }
         } else if (data.type === 'sync' || data.type === 'move') {
           data.player.lastSeen = Date.now();
+          // Guardamos estrictamente en la lista de otros usuarios remotos
           players[data.player.id] = data.player;
           if (data.vehicles) vehicles = data.vehicles;
           
@@ -834,7 +844,6 @@
         }
       });
 
-      // Monedas flotantes
       mapCoins.forEach(coin => {
         if (coin.active) {
           ctx.font = '16px monospace'; ctx.textAlign = 'center';
@@ -865,7 +874,6 @@
       let bobY = (p.isMoving && !p.vehicle) ? Math.sin(animFrame * 0.3) * 3 : 0;
       let renderY = p.y + bobY;
 
-      // 1. DIBUJAR CUERPO Y CABEZA
       if (!p.vehicle) {
         ctx.beginPath();
         if (p.avatar === 'martin') {
@@ -887,13 +895,11 @@
         }
       }
 
-      // 2. DIBUJAR NOMBRE (ABAJO del personaje)
       ctx.fillStyle = '#ffffff';
       ctx.font = '11px monospace'; 
       ctx.textAlign = 'center';
       ctx.fillText(p.name, p.x, renderY + 26);
 
-      // 3. DIBUJAR GLOBO DE CHAT (ARRIBA del personaje)
       if (p.bubble && Date.now() < p.bubble.timer) {
         const maxLen = 14;
         let displayMsg = p.bubble.text;
@@ -934,7 +940,6 @@
         ctx.fillText(displayMsg, p.x, bubbleY + 13);
       }
 
-      // 4. DIBUJAR EMOTE
       if (p.emote && Date.now() < p.emote.timer) {
         ctx.font = '16px monospace'; 
         ctx.textAlign = 'center';
