@@ -1,338 +1,245 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Friends Neighborhood - Personal Homes & Shop</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neighborhood World - Multiplayer Game (v1.7.2)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; touch-action: manipulation; }
-    body { background: #000; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
-    
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
+    body { background: #000; color: #fff; overflow: hidden; }
+
+    /* Modal Setup / Login */
     #setup-modal {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: #000; display: flex; flex-direction: column;
-      justify-content: center; align-items: center; z-index: 10; padding: 15px;
+      position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.95); display: flex; flex-direction: column;
+      align-items: center; justify-content: center; z-index: 100;
     }
-    .card { border: 2px solid #fff; padding: 20px; background: #000; text-align: center; width: 100%; max-width: 380px; }
-    input { width: 100%; padding: 10px; margin: 8px 0; background: #111; color: #fff; border: 1px solid #fff; outline: none; font-size: 13px; text-align: center; }
-    .options-grid { display: flex; justify-content: space-between; margin: 8px 0; gap: 4px; }
-    .opt-btn { border: 1px solid #fff; padding: 8px; cursor: pointer; background: #111; flex: 1; font-size: 11px; text-align: center; color: #fff; }
-    .opt-btn.selected { background: #fff; color: #000; font-weight: bold; }
-    .color-swatch { width: 22px; height: 22px; border-radius: 50%; border: 1px solid #fff; display: inline-block; cursor: pointer; }
-    .color-swatch.selected { outline: 2px solid #fff; outline-offset: 2px; }
-    button.start { padding: 12px; background: #fff; color: #000; border: none; font-weight: bold; cursor: pointer; width: 100%; font-size: 14px; margin-top: 10px; }
+    .setup-box {
+      border: 2px solid #fff; padding: 20px; background: #111;
+      display: flex; flex-direction: column; gap: 15px; width: 320px;
+    }
+    .setup-box input, .setup-box button, .setup-box select {
+      background: #000; color: #fff; border: 1px solid #fff; padding: 10px;
+      font-family: monospace; cursor: pointer;
+    }
+    .setup-box button:hover { background: #fff; color: #000; }
 
-    #version-tag { font-size: 10px; color: #888; margin-top: 8px; }
+    /* UI Principal del Juego */
+    #game-container { display: none; width: 100vw; height: 100vh; position: relative; }
+    canvas { display: block; background: #050505; width: 100vw; height: 100vh; }
 
-    #game-container { position: relative; display: none; width: 100vw; max-width: 800px; margin: 0 auto; }
-    .canvas-wrapper { position: relative; width: 100%; padding-top: 75%; }
-    canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; border: 2px solid #fff; background: #000; display: block; }
+    #hud {
+      position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8);
+      border: 1px solid #fff; padding: 10px; z-index: 10; font-size: 12px;
+      display: flex; flex-direction: column; gap: 4px; pointer-events: none;
+    }
     
-    #notification-container {
-      position: absolute;
-      top: 15px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      z-index: 20;
-      pointer-events: none;
+    #hud-controls {
+      position: absolute; top: 10px; right: 10px; z-index: 10; display: flex; gap: 5px;
     }
-
-    .toast-notification {
-      background: rgba(0, 0, 0, 0.9);
-      border: 1px solid #fff;
-      color: #fff;
-      padding: 6px 12px;
-      font-size: 11px;
-      font-family: monospace;
-      border-radius: 4px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.8);
-      animation: fadeInOut 2.5s forwards;
+    #hud-controls button {
+      background: rgba(0,0,0,0.8); color: #fff; border: 1px solid #fff;
+      padding: 6px 10px; font-family: monospace; cursor: pointer;
     }
+    #hud-controls button:hover { background: #fff; color: #000; }
 
-    .toast-notification.error { border-color: #f55; color: #f55; }
-    .toast-notification.success { border-color: #5f5; color: #5f5; }
-
-    @keyframes fadeInOut {
-      0% { opacity: 0; transform: translateY(-10px); }
-      15% { opacity: 1; transform: translateY(0); }
-      85% { opacity: 1; transform: translateY(0); }
-      100% { opacity: 0; transform: translateY(-10px); }
-    }
-
-    #room-info { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; font-size: 11px; z-index: 2; }
-    #player-list { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; font-size: 11px; z-index: 2; width: 140px; }
-    
-    #chat-container { position: absolute; bottom: 8px; left: 8px; width: 240px; max-width: 50%; background: rgba(0,0,0,0.85); border: 1px solid #fff; padding: 6px; z-index: 2; }
-    #chat-header { display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: bold; cursor: pointer; user-select: none; border-bottom: 1px solid #444; padding-bottom: 2px; margin-bottom: 4px; }
-    #chat-header:hover { color: #ff0; }
-    #chat-body { display: block; }
-    #chat-container.minimized #chat-body { display: none; }
-    #chat-container.minimized #chat-header { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-    #chat-logs { height: 70px; overflow-y: auto; font-size: 10px; margin-bottom: 4px; display: flex; flex-direction: column; gap: 2px; word-break: break-word; }
-    #chat-input { width: 100%; padding: 4px; background: #111; color: #fff; border: 1px solid #fff; outline: none; font-size: 10px; text-align: left; }
-
-    #emote-bar { position: absolute; bottom: 8px; right: 8px; display: flex; gap: 4px; z-index: 2; }
-    .emote-btn { background: #111; border: 1px solid #fff; padding: 4px 8px; cursor: pointer; font-size: 12px; color: #fff; }
-    .emote-btn:active { background: #fff; color: #000; }
-
+    /* Modales de Tienda e Inventario */
     .game-modal {
-      display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      width: 280px; background: rgba(0, 0, 0, 0.95); border: 2px solid #fff; padding: 12px; z-index: 5;
+      display: none; position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%); background: #111; border: 2px solid #fff;
+      padding: 15px; width: 300px; z-index: 20; color: #fff;
     }
-    .game-modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #fff; padding-bottom: 4px; margin-bottom: 8px; font-weight: bold; font-size: 12px; }
-    .close-btn { cursor: pointer; color: #f00; font-weight: bold; }
-    .item-list { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
-    .item-row { display: flex; justify-content: space-between; align-items: center; background: #111; border: 1px solid #444; padding: 6px; font-size: 10px; }
-    .item-row button { background: #fff; color: #000; border: none; font-weight: bold; padding: 2px 6px; cursor: pointer; }
+    .game-modal h3 { border-bottom: 1px solid #fff; padding-bottom: 5px; margin-bottom: 10px; }
+    .item-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 11px; }
+    .item-row button { background: #000; color: #fff; border: 1px solid #fff; padding: 2px 8px; cursor: pointer; }
+    .item-row button:hover { background: #fff; color: #000; }
 
-    #controls-container { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding: 0 10px; }
-    #dpad { display: grid; grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(3, 42px); gap: 4px; user-select: none; }
-    .dbtn { background: #111; border: 1px solid #fff; color: #fff; font-size: 16px; font-weight: bold; display: flex; justify-content: center; align-items: center; border-radius: 4px; cursor: pointer; }
-    .dbtn:active { background: #fff; color: #000; }
-    
-    .action-group { display: flex; flex-direction: column; gap: 6px; align-items: center; }
-    #action-btn { width: 80px; height: 60px; background: #111; border: 2px solid #fff; color: #fff; font-size: 12px; font-weight: bold; border-radius: 8px; display: flex; justify-content: center; align-items: center; cursor: pointer; user-select: none; text-align: center; }
-    #action-btn:active { background: #fff; color: #000; }
-    #reset-btn { background: #222; border: 1px solid #888; color: #aaa; font-size: 9px; padding: 4px 8px; cursor: pointer; border-radius: 4px; }
+    /* Chat Container */
+    #chat-container {
+      position: absolute; bottom: 10px; left: 10px; width: 300px;
+      background: rgba(0,0,0,0.85); border: 1px solid #fff; z-index: 10;
+    }
+    #chat-container.minimized #chat-logs { display: none; }
+    #chat-header {
+      background: #222; padding: 5px 10px; cursor: pointer;
+      display: flex; justify-content: space-between; border-bottom: 1px solid #fff;
+    }
+    #chat-logs { height: 120px; overflow-y: auto; padding: 8px; font-size: 11px; }
+    #chat-input-box { border-top: 1px solid #fff; display: flex; }
+    #chat-input { background: #000; color: #fff; border: none; padding: 8px; width: 100%; font-family: monospace; }
+
+    /* Notificaciones */
+    #notification-zone {
+      position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+      z-index: 30; pointer-events: none; display: flex; flex-direction: column; gap: 5px;
+    }
+    .toast {
+      background: rgba(0,0,0,0.9); border: 1px solid #fff; padding: 6px 12px;
+      font-size: 11px; text-align: center;
+    }
+    .toast.success { border-color: #0f0; color: #0f0; }
+    .toast.error { border-color: #f00; color: #f00; }
+
+    /* Mandos táctiles para móviles */
+    #mobile-controls {
+      display: none; position: absolute; bottom: 20px; right: 20px; z-index: 10;
+    }
+    .dpad-row { display: flex; justify-content: center; }
+    .dpad-btn {
+      width: 44px; height: 44px; background: rgba(255,255,255,0.2);
+      border: 1px solid #fff; color: #fff; font-size: 18px; display: flex;
+      align-items: center; justify-content: center; user-select: none;
+    }
+    @media (pointer: coarse) { #mobile-controls { display: block; } }
   </style>
 </head>
 <body>
 
+  <!-- Modal de Setup Inicial -->
   <div id="setup-modal">
-    <div class="card">
-      <h2 style="margin-bottom: 8px;">NEIGHBORHOOD</h2>
-      
-      <p style="font-size: 10px; color: #aaa;">ENTER YOUR NAME:</p>
-      <input type="text" id="username-input" placeholder="Your Name..." maxlength="15">
-
-      <p style="font-size: 10px; color: #aaa; margin-top: 4px;">WORLD / ROOM NAME:</p>
-      <input type="text" id="world-id-input" placeholder="e.g. main-town" value="main-town" maxlength="20">
-
-      <p style="font-size: 10px; margin-top: 4px; color: #aaa;">CHOOSE YOUR AVATAR:</p>
-      <div class="options-grid">
-        <div class="opt-btn selected" id="btn-martin" onclick="selectAvatar('martin')">🕶️ Martin</div>
-        <div class="opt-btn" id="btn-gaby" onclick="selectAvatar('gaby')">🎧 Gaby</div>
-        <div class="opt-btn" id="btn-facu" onclick="selectAvatar('facu')">🧢 Facu</div>
-      </div>
-
-      <p style="font-size: 10px; margin-top: 4px; color: #aaa;">SELECT COLOR TINT:</p>
-      <div class="options-grid" style="justify-content:center; gap:8px;">
-        <div class="color-swatch selected" style="background:#ffffff;" onclick="selectColor('#ffffff', this)"></div>
-        <div class="color-swatch" style="background:#aaaaaa;" onclick="selectColor('#aaaaaa', this)"></div>
-        <div class="color-swatch" style="background:#555555;" onclick="selectColor('#555555', this)"></div>
-        <div class="color-swatch" style="background:#e8a5a5;" onclick="selectColor('#e8a5a5', this)"></div>
-        <div class="color-swatch" style="background:#a5e8c5;" onclick="selectColor('#a5e8c5', this)"></div>
-      </div>
-
-      <button class="start" onclick="enterHouse()">ENTER WORLD</button>
-      <div id="version-tag">Build: v1.7.1 (Isolated Inventory & Toast Fix)</div>
+    <div class="setup-box">
+      <h2 style="text-align:center;">ENTER NEIGHBORHOOD</h2>
+      <div style="font-size: 10px; text-align: center; color: #888;">BUILD: v1.7.2</div>
+      <input type="text" id="username-input" placeholder="Enter Username..." maxlength="12">
+      <input type="text" id="world-id-input" placeholder="World ID (Default: main-town)">
+      <select id="avatar-select">
+        <option value="martin">Martin</option>
+        <option value="gaby">Gaby</option>
+        <option value="default">Citizen</option>
+      </select>
+      <select id="color-select">
+        <option value="#ffffff">White</option>
+        <option value="#00ffff">Cyan</option>
+        <option value="#ff00ff">Magenta</option>
+        <option value="#ffff00">Yellow</option>
+      </select>
+      <button onclick="enterHouse()">START GAME</button>
     </div>
   </div>
 
+  <!-- Contenedor Principal del Juego -->
   <div id="game-container">
-    <div class="canvas-wrapper">
-      <canvas id="gameCanvas" width="800" height="600"></canvas>
-      
-      <div id="notification-container"></div>
+    <div id="hud">
+      <div>BUILD: <span style="color:#0f0;">v1.7.2</span></div>
+      <div>ROOM: <span id="display-room-code">MAIN-TOWN</span></div>
+      <div>STATUS: <span id="status-tag" style="color:#0f0;">CONNECTING...</span></div>
+      <div>LOCATION: <span id="location-tag">HOME</span></div>
+      <div>COINS: $<span id="coins-display">100</span></div>
+      <div id="player-names" style="margin-top:5px; font-size:10px; color:#aaa;"></div>
+    </div>
 
-      <div id="room-info">
-        <div>WORLD: <span id="display-room-code" style="font-weight:bold; color:#0f0;">MAIN-TOWN</span></div>
-        <div id="location-tag" style="font-weight:bold; color:#0f0; margin-top:2px;">HOME</div>
-        <div id="coins-tag" style="font-weight:bold; color:#ff0; margin-top:2px;">💰 COINS: $100</div>
-        <div id="status-tag" style="font-size: 9px; color: #0f0; margin-top:2px;">Connecting...</div>
+    <div id="hud-controls">
+      <button onclick="sendEmote('👋')">👋</button>
+      <button onclick="sendEmote('❤️')">❤️</button>
+      <button onclick="sendEmote('😂')">😂</button>
+      <button onclick="toggleShop()">SHOP (B)</button>
+      <button onclick="toggleInventory()">BACKPACK (I)</button>
+      <button onclick="resetPosition()">RESET</button>
+    </div>
+
+    <div id="notification-zone"></div>
+
+    <!-- Tienda -->
+    <div id="shop-modal" class="game-modal">
+      <h3>SHOP</h3>
+      <div id="shop-item-list"></div>
+      <button onclick="toggleShop()" style="width:100%; margin-top:10px; background:#000; color:#fff; border:1px solid #fff; padding:4px; cursor:pointer;">CLOSE</button>
+    </div>
+
+    <!-- Inventario -->
+    <div id="inventory-modal" class="game-modal">
+      <h3>BACKPACK</h3>
+      <div id="inventory-item-list"></div>
+      <button onclick="toggleInventory()" style="width:100%; margin-top:10px; background:#000; color:#fff; border:1px solid #fff; padding:4px; cursor:pointer;">CLOSE</button>
+    </div>
+
+    <!-- Chat Base -->
+    <div id="chat-container">
+      <div id="chat-header" onclick="toggleChat()">
+        <span>WORLD CHAT</span>
+        <span id="chat-toggle-icon">[–]</span>
       </div>
-
-      <div id="player-list">
-        <div style="font-weight:bold; border-bottom:1px solid #fff; margin-bottom:4px;">HERE NOW</div>
-        <div id="player-names"></div>
-      </div>
-
-      <div id="chat-container">
-        <div id="chat-header" onclick="toggleChat()">
-          <span>CHAT</span>
-          <span id="chat-toggle-icon">[–]</span>
-        </div>
-        <div id="chat-body">
-          <div id="chat-logs"></div>
-          <input type="text" id="chat-input" placeholder="Chat... (Enter)" maxlength="60" />
-        </div>
-      </div>
-
-      <div id="emote-bar">
-        <button class="emote-btn" onclick="toggleShop()">🛒 Shop (B)</button>
-        <button class="emote-btn" onclick="toggleInventory()">🎒 Inv (I)</button>
-        <button class="emote-btn" onclick="sendEmote('👋')">👋</button>
-        <button class="emote-btn" onclick="sendEmote('❤️')">❤️</button>
-      </div>
-
-      <div id="shop-modal" class="game-modal">
-        <div class="game-modal-header">
-          <span>TOWN SHOP 🛒</span>
-          <span class="close-btn" onclick="toggleShop()">[X]</span>
-        </div>
-        <div id="shop-item-list" class="item-list"></div>
-      </div>
-
-      <div id="inventory-modal" class="game-modal">
-        <div class="game-modal-header">
-          <span>MY INVENTORY 🎒</span>
-          <span class="close-btn" onclick="toggleInventory()">[X]</span>
-        </div>
-        <div id="inventory-item-list" class="item-list"></div>
+      <div id="chat-logs"></div>
+      <div id="chat-input-box">
+        <input type="text" id="chat-input" placeholder="Press Enter to chat..." maxlength="60">
       </div>
     </div>
 
-    <div id="controls-container">
-      <div id="dpad">
-        <div></div><div class="dbtn" id="btn-up">▲</div><div></div>
-        <div class="dbtn" id="btn-left">◀</div><div></div><div class="dbtn" id="btn-right">▶</div>
-        <div></div><div class="dbtn" id="btn-down">▼</div><div></div>
+    <!-- D-Pad Móvil -->
+    <div id="mobile-controls">
+      <div class="dpad-row"><div class="dpad-btn" id="btn-up">▲</div></div>
+      <div class="dpad-row">
+        <div class="dpad-btn" id="btn-left">◄</div>
+        <div class="dpad-btn" style="opacity:0;"></div>
+        <div class="dpad-btn" id="btn-right">►</div>
       </div>
-      <div class="action-group">
-        <div id="action-btn" onclick="triggerInteraction()">INTERACT<br>(E)</div>
-        <button id="reset-btn" onclick="resetPosition()">Go Home</button>
-      </div>
+      <div class="dpad-row"><div class="dpad-btn" id="btn-down">▼</div></div>
     </div>
+
+    <canvas id="gameCanvas"></canvas>
   </div>
 
   <script>
-    const GAME_VERSION = "1.7.1";
-    const PLAYER_TIMEOUT_MS = 5 * 60 * 1000;
-    let activeWorldRoom = "main-town";
-
-    let selectedAvatar = 'martin';
-    let selectedColor = '#ffffff';
-    let heartbeatInterval = null;
-
-    const SHOP_CATALOG = [
-      { id: 'plant1', name: '🪴 House Plant', price: 30, type: 'furniture' },
-      { id: 'tv1', name: '📺 Plasma TV', price: 80, type: 'furniture' },
-      { id: 'bed1', name: '🛏️ Cozy Bed', price: 120, type: 'furniture' },
-      { id: 'skate1', name: '🛹 Skateboard', price: 150, type: 'vehicle', speed: 11 },
-      { id: 'dog1', name: '🐶 Puppy Pet', price: 200, type: 'pet' }
-    ];
-
-    window.addEventListener('load', () => {
-      const savedName = localStorage.getItem('nh_name');
-      const savedAvatar = localStorage.getItem('nh_avatar');
-      const savedColor = localStorage.getItem('nh_color');
-      const savedRoom = localStorage.getItem('nh_room');
-
-      if (savedName) document.getElementById('username-input').value = savedName;
-      if (savedAvatar) selectAvatar(savedAvatar);
-      if (savedColor) {
-        selectedColor = savedColor;
-        document.querySelectorAll('.color-swatch').forEach(s => {
-          s.classList.toggle('selected', s.style.backgroundColor === savedColor || s.getAttribute('style').includes(savedColor));
-        });
-      }
-      if (window.location.hash) {
-        document.getElementById('world-id-input').value = window.location.hash.replace('#', '');
-      } else if (savedRoom) {
-        document.getElementById('world-id-input').value = savedRoom;
-      }
-    });
-
-    window.addEventListener('beforeunload', () => {
-      if (localPlayer.id) {
-        broadcast({ type: 'leave', id: localPlayer.id });
-      }
-      if (peer) peer.destroy();
-    });
-
-    function selectAvatar(type) {
-      selectedAvatar = type;
-      document.querySelectorAll('.opt-btn').forEach(btn => btn.classList.remove('selected'));
-      let btn = document.getElementById(`btn-${type}`);
-      if (btn) btn.classList.add('selected');
-    }
-
-    function selectColor(colorHex, el) {
-      selectedColor = colorHex;
-      document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
-      el.classList.add('selected');
-    }
-
-    let audioCtx = null;
-    function initAudio() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    function playAudioTone(freq, type = 'square', duration = 0.1, vol = 0.05) {
-      if (!audioCtx) return;
-      try {
-        let osc = audioCtx.createOscillator();
-        let gain = audioCtx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + duration);
-      } catch(e){}
-    }
-
-    function playFootstepSFX() { playAudioTone(100 + Math.random()*40, 'triangle', 0.04, 0.02); }
-    function playVehicleSFX() { playAudioTone(80 + Math.random()*20, 'sawtooth', 0.06, 0.03); }
-    function playDoorSFX() { playAudioTone(150, 'sine', 0.15, 0.05); setTimeout(() => playAudioTone(300, 'sine', 0.2, 0.05), 100); }
-    function playChatChime() { playAudioTone(587.33, 'sine', 0.08, 0.04); setTimeout(() => playAudioTone(880, 'sine', 0.12, 0.04), 80); }
-    function playCoinSFX() { playAudioTone(987.77, 'sine', 0.08, 0.05); setTimeout(() => playAudioTone(1318.51, 'sine', 0.15, 0.05), 60); }
+    const GAME_VERSION = "1.7.2";
+    const WORLD_WIDTH = 2400;
+    const WORLD_HEIGHT = 1600;
+    const PLAYER_TIMEOUT_MS = 10000;
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
-    const WORLD_WIDTH = 2400;
-    const WORLD_HEIGHT = 1600;
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
 
-    let localPlayer = { 
-      id: '', name: 'Player', avatar: 'martin', color: '#ffffff', x: 400, y: 450, speed: 4, radius: 12,
-      dir: 'down', isMoving: false, location: 'house_martin', vehicle: null, bubble: null, emote: null,
-      coins: 100, inventory: []
-    };
-    
-    let players = {}; 
-    let keys = {};
     let peer = null;
     let connections = {};
     let isHost = false;
+    let activeWorldRoom = "main-town";
+    let heartbeatInterval = null;
     let animFrame = 0;
 
-    let mapCoins = [
-      { id: 'c1', x: 600, y: 550, active: true },
-      { id: 'c2', x: 1300, y: 550, active: true },
-      { id: 'c3', x: 1700, y: 800, active: true },
-      { id: 'c4', x: 900, y: 1200, active: true }
+    let selectedAvatar = 'martin';
+    let selectedColor = '#ffffff';
+
+    let keys = {};
+    let players = {};
+
+    let localPlayer = {
+      id: '',
+      name: 'Player',
+      avatar: 'martin',
+      color: '#ffffff',
+      x: 400,
+      y: 450,
+      radius: 12,
+      speed: 4,
+      location: 'house_martin',
+      coins: 100,
+      inventory: [],
+      equippedHat: null,
+      vehicle: null,
+      isMoving: false,
+      dir: 'down'
+    };
+
+    let houses = [
+      { id: 'house_martin', name: "Martin's House", x: 200, y: 200, w: 300, h: 200, doorX: 350, doorY: 400, exitX: 350, exitY: 430, furniture: '📺 TV Room' },
+      { id: 'house_gaby', name: "Gaby's House", x: 1000, y: 200, w: 300, h: 200, doorX: 1150, doorY: 400, exitX: 1150, exitY: 430, furniture: '🌺 Garden Couch' },
+      { id: 'house_default', name: "Community Hub", x: 1800, y: 200, w: 300, h: 200, doorX: 1950, doorY: 400, exitX: 1950, exitY: 430, furniture: '☕ Coffee Bar' }
     ];
 
-    const houses = [
-      { id: 'house_martin', name: "Martin's House", owner: 'martin', x: 100, y: 100, w: 400, h: 300, doorX: 300, doorY: 400, exitX: 300, exitY: 430, furniture: '🕶️ Martin Studio' },
-      { id: 'house_gaby', name: "Gaby's House", owner: 'gaby', x: 1000, y: 100, w: 400, h: 300, doorX: 1200, doorY: 400, exitX: 1200, exitY: 430, furniture: '🎧 Gaby Lounge' },
-      { id: 'house_facu', name: "Facu's House", owner: 'facu', x: 1800, y: 100, w: 400, h: 300, doorX: 2000, doorY: 400, exitX: 2000, exitY: 430, furniture: '🧢 Facu Room' }
+    let outdoorSolids = [
+      { x: 200, y: 200, w: 300, h: 200 },
+      { x: 1000, y: 200, w: 300, h: 200 },
+      { x: 1800, y: 200, w: 300, h: 200 }
     ];
 
-    let vehicles = [
-      { id: 'car1', type: 'car', icon: '🚗', x: 550, y: 450, w: 40, h: 40, driver: null, speed: 8, location: 'world' },
-      { id: 'bike1', type: 'bike', icon: '🛵', x: 1450, y: 450, w: 30, h: 30, driver: null, speed: 10, location: 'world' },
-      { id: 'plane1', type: 'plane', icon: '✈️', x: 1200, y: 1200, w: 60, h: 60, driver: null, speed: 13, location: 'world' }
-    ];
-
-    const outdoorSolids = [
-      { x: 0, y: 0, w: WORLD_WIDTH, h: 10 },
-      { x: 0, y: WORLD_HEIGHT - 10, w: WORLD_WIDTH, h: 10 },
-      { x: 0, y: 0, w: 10, h: WORLD_HEIGHT },
-      { x: WORLD_WIDTH - 10, y: 0, w: 10, h: WORLD_HEIGHT },
-      { x: 100, y: 100, w: 400, h: 300 },
-      { x: 1000, y: 100, w: 400, h: 300 },
-      { x: 1800, y: 100, w: 400, h: 300 }
-    ];
-
-    const houseSolids = [
+    let houseSolids = [
       { x: 100, y: 100, w: 600, h: 10 },
       { x: 100, y: 100, w: 10, h: 400 },
       { x: 690, y: 100, w: 10, h: 400 },
@@ -341,73 +248,153 @@
       { x: 250, y: 200, w: 300, h: 100 }
     ];
 
-    function showNotification(text, type = 'info') {
-      const container = document.getElementById('notification-container');
-      if (!container) return;
+    let vehicles = [
+      { id: 'v_car1', type: 'car', icon: '🏎️', x: 600, y: 530, speed: 7, driver: null, location: 'world' },
+      { id: 'v_plane1', type: 'plane', icon: '🛩️', x: 1200, y: 1150, speed: 10, driver: null, location: 'world' }
+    ];
 
-      const toast = document.createElement('div');
-      toast.className = `toast-notification ${type}`;
-      toast.innerText = text;
+    let mapCoins = [
+      { id: 1, x: 500, y: 600, active: true },
+      { id: 2, x: 900, y: 700, active: true },
+      { id: 3, x: 1400, y: 400, active: true },
+      { id: 4, x: 300, y: 900, active: true },
+      { id: 5, x: 1700, y: 900, active: true }
+    ];
 
-      container.appendChild(toast);
+    let shopItems = [
+      { id: 'item_hat', name: 'Party Hat 🎉', price: 30, type: 'hat' },
+      { id: 'item_speed', name: 'Speed Boost ⚡', price: 50, type: 'buff' }
+    ];
 
-      setTimeout(() => {
-        toast.remove();
-      }, 2500);
+    // Audio SFX sintético
+    let audioCtx = null;
+    function initAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    function playCoinSFX() {
+      if (!audioCtx) return;
+      let osc = audioCtx.createOscillator();
+      let gain = audioCtx.createGain();
+      osc.frequency.setValueAtTime(987.77, audioCtx.currentTime);
+      osc.frequency.setValueAtTime(1318.51, audioCtx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.25);
+    }
+    function playFootstepSFX() {
+      if (!audioCtx) return;
+      let osc = audioCtx.createOscillator();
+      let gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+    }
+    function playVehicleSFX() {
+      if (!audioCtx) return;
+      let osc = audioCtx.createOscillator();
+      let gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(60, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.08);
+    }
+    function playDoorSFX() {
+      if (!audioCtx) return;
+      let osc = audioCtx.createOscillator();
+      let gain = audioCtx.createGain();
+      osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+    }
+    function playChatChime() {
+      if (!audioCtx) return;
+      let osc = audioCtx.createOscillator();
+      let gain = audioCtx.createGain();
+      osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+    }
+    function playEquipSFX() {
+      if (!audioCtx) return;
+      let osc = audioCtx.createOscillator();
+      let gain = audioCtx.createGain();
+      osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.2);
     }
 
-    function updateCoinsDisplay() {
-      document.getElementById('coins-tag').innerText = `💰 COINS: $${localPlayer.coins}`;
-      if (localPlayer.name) {
-        localStorage.setItem(`nh_coins_${localPlayer.name}`, localPlayer.coins);
-        localStorage.setItem(`nh_inventory_${localPlayer.name}`, JSON.stringify(localPlayer.inventory));
-      }
+    // UI Utilities
+    function showNotification(msg, type = 'normal') {
+      const zone = document.getElementById('notification-zone');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerText = msg;
+      zone.appendChild(toast);
+      setTimeout(() => { toast.remove(); }, 3000);
+    }
+
+    function savePlayerData() {
+      document.getElementById('coins-display').innerText = localPlayer.coins;
+      localStorage.setItem(`nh_coins_${localPlayer.name}`, localPlayer.coins);
+      localStorage.setItem(`nh_inventory_${localPlayer.name}`, JSON.stringify(localPlayer.inventory));
+      localStorage.setItem(`nh_hat_${localPlayer.name}`, localPlayer.equippedHat || '');
     }
 
     function toggleShop() {
       const modal = document.getElementById('shop-modal');
-      const isVisible = modal.style.display === 'block';
-      modal.style.display = isVisible ? 'none' : 'block';
-      if (!isVisible) renderShop();
-    }
-
-    function toggleInventory() {
-      const modal = document.getElementById('inventory-modal');
-      const isVisible = modal.style.display === 'block';
-      modal.style.display = isVisible ? 'none' : 'block';
-      if (!isVisible) renderInventory();
+      modal.style.display = (modal.style.display === 'block') ? 'none' : 'block';
+      if (modal.style.display === 'block') renderShop();
     }
 
     function renderShop() {
       const container = document.getElementById('shop-item-list');
       container.innerHTML = '';
-      SHOP_CATALOG.forEach(item => {
-        const owned = localPlayer.inventory.some(i => i.id === item.id);
+      shopItems.forEach(item => {
         const div = document.createElement('div');
         div.className = 'item-row';
         div.innerHTML = `
           <span>${item.name} ($${item.price})</span>
-          <button onclick="buyItem('${item.id}')" ${owned ? 'disabled style="opacity:0.5"' : ''}>
-            ${owned ? 'OWNED' : 'BUY'}
-          </button>
+          <button onclick="buyItem('${item.id}')">BUY</button>
         `;
         container.appendChild(div);
       });
     }
 
     function buyItem(itemId) {
-      const item = SHOP_CATALOG.find(i => i.id === itemId);
+      const item = shopItems.find(i => i.id === itemId);
       if (!item) return;
       if (localPlayer.coins >= item.price) {
         localPlayer.coins -= item.price;
-        localPlayer.inventory.push(item);
-        updateCoinsDisplay();
-        renderShop();
+        localPlayer.inventory.push({ ...item, instanceId: Math.random().toString(36).substring(2, 7) });
+        savePlayerData();
         playCoinSFX();
         showNotification(`Purchased ${item.name}!`, 'success');
+        if (document.getElementById('inventory-modal').style.display === 'block') {
+          renderInventory();
+        }
       } else {
         showNotification("Not enough coins!", 'error');
       }
+    }
+
+    function toggleInventory() {
+      const modal = document.getElementById('inventory-modal');
+      modal.style.display = (modal.style.display === 'block') ? 'none' : 'block';
+      if (modal.style.display === 'block') renderInventory();
     }
 
     function renderInventory() {
@@ -417,15 +404,55 @@
         container.innerHTML = '<div style="font-size:10px; color:#aaa; text-align:center;">Empty Backpack</div>';
         return;
       }
-      localPlayer.inventory.forEach(item => {
+
+      localPlayer.inventory.forEach((item, index) => {
         const div = document.createElement('div');
         div.className = 'item-row';
+
+        let actionBtnHTML = '';
+        if (item.type === 'hat') {
+          const isEquipped = localPlayer.equippedHat === item.id;
+          actionBtnHTML = `<button onclick="toggleEquipHat('${item.id}')">${isEquipped ? 'UNEQUIP' : 'EQUIP'}</button>`;
+        } else if (item.type === 'buff') {
+          actionBtnHTML = `<button onclick="useBuffItem(${index})">USE</button>`;
+        }
+
         div.innerHTML = `
-          <span>${item.name} (${item.type.toUpperCase()})</span>
-          <span style="font-size:9px; color:#0f0;">READY</span>
+          <span>${item.name}</span>
+          ${actionBtnHTML}
         `;
         container.appendChild(div);
       });
+    }
+
+    function toggleEquipHat(hatId) {
+      if (localPlayer.equippedHat === hatId) {
+        localPlayer.equippedHat = null;
+        showNotification("Hat unequipped", 'normal');
+      } else {
+        localPlayer.equippedHat = hatId;
+        showNotification("Hat equipped!", 'success');
+      }
+      playEquipSFX();
+      savePlayerData();
+      renderInventory();
+      broadcast({ type: 'move', player: localPlayer, vehicles });
+    }
+
+    function useBuffItem(index) {
+      const item = localPlayer.inventory[index];
+      if (!item) return;
+
+      if (item.id === 'item_speed') {
+        localPlayer.speed += 2;
+        showNotification("Speed Boost Activated! (+2 Speed)", 'success');
+        playEquipSFX();
+      }
+
+      localPlayer.inventory.splice(index, 1);
+      savePlayerData();
+      renderInventory();
+      broadcast({ type: 'move', player: localPlayer, vehicles });
     }
 
     function toggleChat() {
@@ -460,6 +487,8 @@
       initAudio();
       
       const customName = document.getElementById('username-input').value.trim();
+      selectedAvatar = document.getElementById('avatar-select').value;
+      selectedColor = document.getElementById('color-select').value;
       activeWorldRoom = document.getElementById('world-id-input').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || "main-town";
       window.location.hash = activeWorldRoom;
       document.getElementById('display-room-code').innerText = activeWorldRoom.toUpperCase();
@@ -472,26 +501,20 @@
       localPlayer.x = 400;
       localPlayer.y = 450;
 
-      // Carga aislada de monedas e inventario por usuario específico
       const savedCoins = localStorage.getItem(`nh_coins_${localPlayer.name}`);
-      if (savedCoins !== null) {
-        localPlayer.coins = parseInt(savedCoins, 10);
-      } else {
-        localPlayer.coins = 100;
-      }
+      localPlayer.coins = savedCoins !== null ? parseInt(savedCoins, 10) : 100;
 
       const savedInv = localStorage.getItem(`nh_inventory_${localPlayer.name}`);
       if (savedInv) {
-        try { 
-          localPlayer.inventory = JSON.parse(savedInv); 
-        } catch(e) { 
-          localPlayer.inventory = []; 
-        }
+        try { localPlayer.inventory = JSON.parse(savedInv); } catch(e) { localPlayer.inventory = []; }
       } else {
         localPlayer.inventory = [];
       }
 
-      updateCoinsDisplay();
+      const savedHat = localStorage.getItem(`nh_hat_${localPlayer.name}`);
+      if (savedHat) localPlayer.equippedHat = savedHat;
+
+      savePlayerData();
 
       localStorage.setItem('nh_name', localPlayer.name);
       localStorage.setItem('nh_avatar', selectedAvatar);
@@ -520,6 +543,7 @@
     function setupMobileControls() {
       const bindTouch = (id, keyName) => {
         const btn = document.getElementById(id);
+        if (!btn) return;
         const start = (e) => { e.preventDefault(); keys[keyName] = true; };
         const end = (e) => { e.preventDefault(); keys[keyName] = false; };
         btn.addEventListener('touchstart', start, { passive: false });
@@ -532,7 +556,7 @@
     }
 
     function initMultiplayerGlobal() {
-      const hostRoomId = `nh-${activeWorldRoom}-host-v17`;
+      const hostRoomId = `nh-${activeWorldRoom}-host-v172`;
       const joinDelay = Math.floor(Math.random() * 300);
 
       setTimeout(() => {
@@ -582,7 +606,6 @@
           }
         } else if (data.type === 'sync' || data.type === 'move') {
           data.player.lastSeen = Date.now();
-          // Guardamos estrictamente en la lista de otros usuarios remotos
           players[data.player.id] = data.player;
           if (data.vehicles) vehicles = data.vehicles;
           
@@ -764,7 +787,7 @@
         if (coin.active && Math.hypot(localPlayer.x - coin.x, localPlayer.y - coin.y) < 25) {
           coin.active = false;
           localPlayer.coins += 10;
-          updateCoinsDisplay();
+          savePlayerData();
           playCoinSFX();
           showNotification("+$10 Coins!", 'success');
           setTimeout(() => {
@@ -892,6 +915,12 @@
           ctx.rect(p.x - 8, renderY + 6, 16, 12);
           ctx.stroke();
           ctx.fillRect(p.x - 10, renderY - 12, 16, 3);
+        }
+
+        if (p.equippedHat === 'item_hat') {
+          ctx.font = '16px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('🥳', p.x, renderY - 15);
         }
       }
 
