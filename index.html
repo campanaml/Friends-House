@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neighborhood World - Mega City PRO (v4.1.2)</title>
+  <title>Neighborhood World - Mega City PRO (v4.3.0)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
@@ -128,6 +128,16 @@
     #mobile-controls .dpad-btn { border-radius:14px; background:rgba(10,14,20,.52); border-color:rgba(255,255,255,.25); backdrop-filter:blur(8px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
     .setup-box { border-color: rgba(0,255,204,.55); background:linear-gradient(145deg,rgba(10,16,20,.96),rgba(6,8,12,.96)); border-radius:18px; box-shadow:0 30px 90px rgba(0,0,0,.55),0 0 40px rgba(0,255,204,.12); }
     .setup-box button { border-radius:10px; box-shadow:0 10px 30px rgba(0,255,204,.18); }
+  
+    /* --- V4.3 WORLD / MINIMAP --- */
+    #minimap-wrap{position:absolute;right:14px;bottom:14px;width:236px;padding:8px;border:1px solid rgba(255,255,255,.16);border-radius:16px;background:rgba(7,11,16,.72);backdrop-filter:blur(12px);box-shadow:0 16px 44px rgba(0,0,0,.32);z-index:12;pointer-events:none}
+    .mini-title{display:flex;justify-content:space-between;padding:0 4px 6px;font:700 10px system-ui,sans-serif;letter-spacing:1.2px;color:rgba(255,255,255,.9)}
+    .mini-title span:last-child{color:#9fffe8}
+    #minimap{display:block;width:220px;height:135px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#14201c}
+    .mini-legend{display:flex;gap:8px;justify-content:center;padding-top:6px;font:8px system-ui,sans-serif;color:rgba(255,255,255,.62)}
+    .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:3px;box-shadow:0 0 6px currentColor}
+    .dot.me{color:#fff}.dot.other{color:#57d6ff}.dot.poi{color:#ffd86b}
+    @media(max-width:700px){#minimap-wrap{width:184px}.mini-title{font-size:9px}#minimap{width:168px;height:103px}.mini-legend{font-size:7px;gap:4px}}
   </style>
 </head>
 <body>
@@ -165,7 +175,7 @@
 
   <div id="game-container">
     <div id="hud">
-      <div>BUILD: <span style="color:#0f0;">v4.1.2 MEGA</span></div>
+      <div>BUILD: <span style="color:#0f0;">v4.3.0 MEGA</span></div>
       <div>ROOM: <span id="display-room-code">MAIN-CITY</span></div>
       <div>STATUS: <span id="status-tag" style="color:#0f0;">CONNECTING...</span></div>
       <div>LOCATION: <span id="location-tag">HOME</span></div>
@@ -207,6 +217,12 @@
       </div>
     </div>
 
+    <div id="minimap-wrap">
+      <div class="mini-title"><span>MEGA CITY</span><span id="time-label">DAY</span></div>
+      <canvas id="minimap" width="220" height="135"></canvas>
+      <div class="mini-legend"><span><i class="dot me"></i>YOU</span><span><i class="dot other"></i>PLAYERS</span><span><i class="dot poi"></i>PLACES</span></div>
+    </div>
+
     <div id="mobile-controls">
       <div class="dpad-row"><div class="dpad-btn" id="btn-up">▲</div></div>
       <div class="dpad-row">
@@ -221,7 +237,7 @@
   </div>
 
   <script>
-    const GAME_VERSION = "4.1.2";
+    const GAME_VERSION = "4.3.0";
     const WORLD_WIDTH = 4200;
     const WORLD_HEIGHT = 2800;
     const PLAYER_TIMEOUT_MS = 10000;
@@ -278,6 +294,10 @@
     let particles = [];
     let lastPlayerX = 0;
     let lastPlayerY = 0;
+    let dayClock = 0.24; // 0..1, starts mid-morning
+    let cameraShake = 0;
+    let zonePulse = 0;
+
 
     let selectedAvatar = 'martin';
     let selectedColor = '#ffffff';
@@ -877,7 +897,7 @@
       if (localPlayer.location !== 'world') return;
       mapCoins.forEach(coin => {
         if (coin.active && Math.hypot(localPlayer.x - coin.x, localPlayer.y - coin.y) < 25) {
-          coin.active = false; localPlayer.coins += 10; spawnParticle(coin.x, coin.y, '#ffd54a', 18, 2.6, 42, 3.2);
+          coin.active = false; localPlayer.coins += 10; cameraShake = 7; spawnParticle(coin.x,coin.y,'#ffd54a',16,2.8,34,3.5); spawnParticle(coin.x, coin.y, '#ffd54a', 18, 2.6, 42, 3.2);
           savePlayerData(); playCoinSFX(); showNotification("+$10 Coins!", 'success');
           setTimeout(() => {
             coin.x = Math.floor(Math.random() * (WORLD_WIDTH - 200)) + 100;
@@ -916,6 +936,9 @@
     function update() {
       animFrame++;
       visualTime = performance.now();
+      dayClock = (dayClock + 0.000018) % 1;
+      cameraShake *= .9;
+      drawMinimap();
       updateParticles();
       cleanupGhostPlayers();
       updateNPCs();
@@ -946,6 +969,10 @@
       if (localPlayer.isMoving && animFrame % 7 === 0 && localPlayer.location === 'world' && !localPlayer.vehicle) {
         spawnParticle(localPlayer.x, localPlayer.y+10, 'rgba(210,220,210,.65)', 2, .7, 18, 2);
       }
+      if (localPlayer.isMounted && localPlayer.isMoving && animFrame % 3 === 0) {
+        spawnParticle(localPlayer.x - Math.cos(({up: -Math.PI/2,down:Math.PI/2,left:Math.PI,right:0}[localPlayer.dir]||0))*8, localPlayer.y - Math.sin(({up: -Math.PI/2,down:Math.PI/2,left:Math.PI,right:0}[localPlayer.dir]||0))*8, '#ff4fd8', 2, .7, 18, 2.5);
+      }
+
       if (!checkWallCollision(localPlayer.x, nextY, localPlayer.radius)) localPlayer.y = nextY;
 
       checkCoinPickups();
@@ -953,7 +980,7 @@
       if (localPlayer.vehicle) {
         let v = vehicles.find(item => item.id === localPlayer.vehicle);
         if (v) { v.x = localPlayer.x; v.y = localPlayer.y; }
-        if (localPlayer.isMoving && animFrame % 10 === 0) playVehicleSFX();
+        if (localPlayer.isMoving && animFrame % 10 === 0) { playVehicleSFX(); cameraShake = Math.min(2.5,cameraShake+.3); }
       } else if (localPlayer.isMoving && animFrame % 18 === 0) {
         playFootstepSFX();
       }
@@ -1031,6 +1058,58 @@
       ctx.restore();
     }
 
+    function drawDistrict(x,y,w,h,label,fill){
+      ctx.save(); ctx.fillStyle=fill; ctx.globalAlpha=.42; ctx.fillRect(x,y,w,h); ctx.globalAlpha=1;
+      ctx.strokeStyle='rgba(255,255,255,.055)'; ctx.lineWidth=2; ctx.setLineDash([8,14]); ctx.strokeRect(x+10,y+10,w-20,h-20); ctx.setLineDash([]);
+      ctx.fillStyle='rgba(255,255,255,.24)'; ctx.font='700 18px system-ui,sans-serif'; ctx.textAlign='left';
+      ctx.fillText(label,x+24,y+34); ctx.restore();
+    }
+
+    function getDayState(){
+      const t=dayClock;
+      if(t<.20||t>.82) return 'NIGHT';
+      if(t<.30) return 'DAWN';
+      if(t<.68) return 'DAY';
+      return 'SUNSET';
+    }
+
+    function getLightSettings(){
+      const t=dayClock;
+      if(t<.20||t>.82) return {overlay:'rgba(14,24,58,.58)',lamp:1.2,neon:1.45};
+      if(t<.30) return {overlay:'rgba(255,174,104,.13)',lamp:.35,neon:.75};
+      if(t<.68) return {overlay:'rgba(255,248,220,0)',lamp:.05,neon:.35};
+      return {overlay:'rgba(255,130,70,.14)',lamp:.55,neon:1.0};
+    }
+
+    function drawLightingOverlay(){
+      const ls=getLightSettings();
+      ctx.fillStyle=ls.overlay; ctx.fillRect(0,0,WORLD_WIDTH,WORLD_HEIGHT);
+      if(getDayState()==='NIGHT'||getDayState()==='SUNSET'){
+        streetLights.forEach(l=>{
+          const r=78*ls.lamp; const g=ctx.createRadialGradient(l.x,l.y-30,4,l.x,l.y-30,r);
+          g.addColorStop(0,`rgba(255,235,150,${.24*ls.lamp})`); g.addColorStop(1,'rgba(255,190,80,0)');
+          ctx.fillStyle=g; ctx.beginPath(); ctx.arc(l.x,l.y-30,r,0,Math.PI*2); ctx.fill();
+        });
+      }
+    }
+
+    function drawMinimap(){
+      const mm=document.getElementById('minimap'); if(!mm) return;
+      const m=mm.getContext('2d'),w=mm.width,h=mm.height,sx=w/WORLD_WIDTH,sy=h/WORLD_HEIGHT;
+      m.clearRect(0,0,w,h);
+      const night=(getDayState()==='NIGHT');
+      m.fillStyle=night?'#111b26':'#385b42';m.fillRect(0,0,w,h);
+      m.fillStyle=night?'#283440':'#555e62';
+      m.fillRect(0,400*sy,w,140*sy);m.fillRect(0,1500*sy,w,140*sy);m.fillRect(900*sx,0,140*sx,h);m.fillRect(1900*sx,0,140*sx,h);m.fillRect(2900*sx,0,140*sx,h);
+      m.fillStyle='#5f8e5d';m.fillRect(1100*sx,950*sy,750*sx,500*sy);m.fillStyle='#437d58';m.fillRect(2200*sx,900*sy,650*sx,360*sy);
+      houses.forEach(hh=>{m.fillStyle=hh.id==='house_bar'?'#d64c9a':hh.id==='house_hospital'?'#ff6370':'#cf9a69';m.fillRect(hh.x*sx,hh.y*sy,hh.w*sx,hh.h*sy)});
+      m.fillStyle='#ffd86b';[ {x:1475,y:1200},{x:2525,y:1080},{x:2460,y:1800},{x:1550,y:2325} ].forEach(p=>{m.beginPath();m.arc(p.x*sx,p.y*sy,2.4,0,Math.PI*2);m.fill()});
+      for(const id in players){const p=players[id];if(p.location==='world'){m.fillStyle='#57d6ff';m.beginPath();m.arc(p.x*sx,p.y*sy,2,0,Math.PI*2);m.fill()}}
+      if(localPlayer.location==='world'){m.fillStyle='#fff';m.shadowBlur=7;m.shadowColor='#fff';m.beginPath();m.arc(localPlayer.x*sx,localPlayer.y*sy,3.2,0,Math.PI*2);m.fill();m.shadowBlur=0}
+      m.strokeStyle='rgba(255,255,255,.18)';m.strokeRect(.5,.5,w-1,h-1);
+      const tl=document.getElementById('time-label');if(tl)tl.textContent=getDayState();
+    }
+
     function drawCrosswalk(x, y, w, h, horizontal = true) {
       ctx.fillStyle = '#ffffff';
       let stripeSize = 14;
@@ -1047,6 +1126,21 @@
     }
 
     function drawWorld() {
+      // soft city ground + district color accents
+      const base = ctx.createLinearGradient(0,0,0,WORLD_HEIGHT);
+      base.addColorStop(0,'#78a96b'); base.addColorStop(.48,'#6e9d63'); base.addColorStop(1,'#5e8d59');
+      ctx.fillStyle=base; ctx.fillRect(0,0,WORLD_WIDTH,WORLD_HEIGHT);
+      drawDistrict(0,0,900,400,'RESIDENTIAL','#86b96e');
+      drawDistrict(1040,0,860,400,'DOWNTOWN','#6ea7a8');
+      drawDistrict(2040,0,860,400,'NIGHTLIFE','#866ba5');
+      drawDistrict(3040,0,1160,700,'COMMERCE','#86a16a');
+      drawDistrict(0,600,900,900,'SUBURBS','#7da96b');
+      drawDistrict(1040,600,860,900,'CENTRAL PARK','#5f9f73');
+      drawDistrict(2040,600,860,900,'SPORTS DISTRICT','#4e9f72');
+      drawDistrict(3040,700,1160,1500,'INDUSTRIAL','#8d8f78');
+      drawDistrict(0,1640,900,1160,'SUBURBAN EAST','#86a86d');
+      drawDistrict(1040,1640,1860,1160,'AIRPORT & TRANSIT','#7f957f');
+      drawDistrict(3040,1640,1160,1160,'OLD TOWN','#a98a6d');
       // lush base
       const sky = ctx.createLinearGradient(0,0,0,WORLD_HEIGHT); sky.addColorStop(0,'#84c98d'); sky.addColorStop(1,'#5ea970');
       ctx.fillStyle=sky;ctx.fillRect(0,0,WORLD_WIDTH,WORLD_HEIGHT);
@@ -1097,6 +1191,16 @@
       const night = 1-day;
       ctx.fillStyle=`rgba(12,22,55,${(night*.34).toFixed(3)})`;ctx.fillRect(0,0,WORLD_WIDTH,WORLD_HEIGHT);
       ctx.fillStyle=`rgba(255,172,90,${(Math.max(0,.45-Math.abs(day-.5))*.16).toFixed(3)})`;ctx.fillRect(0,0,WORLD_WIDTH,WORLD_HEIGHT);
+      drawLightingOverlay();
+      zonePulse += 0.03;
+    }
+
+
+    function drawVehicleLights(){
+      const state=getDayState(); if(state==='DAY') return;
+      ctx.shadowBlur=10;ctx.shadowColor='#ffe7a0';ctx.fillStyle='#ffe9a3';
+      ctx.fillRect(23,-10,4,5);ctx.fillRect(23,5,4,5);
+      ctx.shadowBlur=0;ctx.fillStyle='rgba(255,80,80,.85)';ctx.fillRect(-28,-10,3,5);ctx.fillRect(-28,5,3,5);
     }
 
     function drawDetailedVehicle(x, y, color, type, angle) {
@@ -1175,6 +1279,7 @@
         ctx.fillRect(-28, 6, 3, 6);
       }
 
+      if(type!=='truck'||type==='car') drawVehicleLights();
       ctx.restore();
     }
 
@@ -1233,6 +1338,7 @@
       const clampedX=Math.max(0,Math.min(maxX,targetX)),clampedY=Math.max(0,Math.min(maxY,targetY));
       camera.x += (clampedX-camera.x)*.12; camera.y += (clampedY-camera.y)*.12;
       ctx.save();
+      if(cameraShake>.1) ctx.translate((Math.random()-.5)*cameraShake,(Math.random()-.5)*cameraShake);
       if(localPlayer.location==='world'){
         ctx.scale(camera.zoom,camera.zoom);ctx.translate(-camera.x,-camera.y);drawWorld();
       }else drawHouseInterior();
