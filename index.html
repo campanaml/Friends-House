@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neighborhood World - Multiplayer City (v3.1.0)</title>
+  <title>Neighborhood World - Multiplayer City (v3.1.1)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
@@ -94,8 +94,8 @@
 
   <div id="setup-modal">
     <div class="setup-box">
-      <h2 style="text-align:center;">METROPOLIS v3.1</h2>
-      <div style="font-size: 10px; text-align: center; color: #888;">FULL DENSE MAP & GIANT TREES</div>
+      <h2 style="text-align:center;">METROPOLIS v3.1.1</h2>
+      <div style="font-size: 10px; text-align: center; color: #888;">FIXED OVERLAPS & EXPANDED CITY</div>
       <input type="text" id="username-input" placeholder="Enter Username..." maxlength="12">
       <input type="text" id="world-id-input" placeholder="World ID (Default: main-city)">
       <select id="avatar-select">
@@ -116,7 +116,7 @@
 
   <div id="game-container">
     <div id="hud">
-      <div>BUILD: <span style="color:#0f0;">v3.1.0</span></div>
+      <div>BUILD: <span style="color:#0f0;">v3.1.1</span></div>
       <div>ROOM: <span id="display-room-code">MAIN-CITY</span></div>
       <div>STATUS: <span id="status-tag" style="color:#0f0;">CONNECTING...</span></div>
       <div>LOCATION: <span id="location-tag">HOME</span></div>
@@ -172,7 +172,7 @@
   </div>
 
   <script>
-    const GAME_VERSION = "3.1.0";
+    const GAME_VERSION = "3.1.1";
     const WORLD_WIDTH = 4200;
     const WORLD_HEIGHT = 2800;
     const PLAYER_TIMEOUT_MS = 10000;
@@ -220,33 +220,33 @@
       dir: 'down'
     };
 
-    // Casas y edificios distribuidos por TODAS las manzanas sin dejar espacios vacíos
+    // Estructuras y casas reubicadas sin colisiones con canchas ni plazas
     let houses = [
-      // Manzana Norte-Oeste
-      { id: 'house_martin', name: "Martin's House", x: 200, y: 180, w: 240, h: 160, doorX: 320, doorY: 340, exitX: 320, exitY: 370, furniture: '📺 Smart TV & Sofa' },
-      { id: 'house_gaby', name: "Gaby's House", x: 500, y: 180, w: 240, h: 160, doorX: 620, doorY: 340, exitX: 620, exitY: 370, furniture: '🌺 Indoor Garden' },
+      // Manzana Norte-Oeste (Y: 180 a 340)
+      { id: 'house_martin', name: "Martin's House", x: 200, y: 180, w: 220, h: 140, doorX: 310, doorY: 320, exitX: 310, exitY: 350, furniture: '📺 Smart TV & Sofa' },
+      { id: 'house_gaby', name: "Gaby's House", x: 480, y: 180, w: 220, h: 140, doorX: 590, doorY: 320, exitX: 590, exitY: 350, furniture: '🌺 Indoor Garden' },
       
-      // Manzana Norte-Centro
-      { id: 'house_police', name: "City Police 🚨", x: 1050, y: 180, w: 280, h: 160, doorX: 1190, doorY: 340, exitX: 1190, exitY: 370, furniture: '💻 Surveillance Hub' },
-      { id: 'house_hospital', name: "General Hospital 🏥", x: 1400, y: 180, w: 280, h: 160, doorX: 1540, doorY: 340, exitX: 1540, exitY: 370, furniture: '💊 Medical Beds' },
+      // Manzana Norte-Centro (Y: 180 a 340)
+      { id: 'house_police', name: "City Police 🚨", x: 1050, y: 180, w: 260, h: 140, doorX: 1180, doorY: 320, exitX: 1180, exitY: 350, furniture: '💻 Surveillance Hub' },
+      { id: 'house_hospital', name: "General Hospital 🏥", x: 1400, y: 180, w: 260, h: 140, doorX: 1530, doorY: 320, exitX: 1530, exitY: 350, furniture: '💊 Medical Beds' },
 
-      // Manzana Norte-Este
-      { id: 'house_bar', name: "The Neon Pub 🍻", x: 2050, y: 180, w: 280, h: 160, doorX: 2190, doorY: 340, exitX: 2190, exitY: 370, furniture: '🍸 Jukebox & Bar' },
-      { id: 'house_shop', name: "Mini Mart 🛒", x: 2400, y: 180, w: 280, h: 160, doorX: 2540, doorY: 340, exitX: 2540, exitY: 370, furniture: '📦 Snack Shelves' },
-      { id: 'house_arcade', name: "Retro Arcade 🕹️", x: 3050, y: 180, w: 280, h: 160, doorX: 3190, doorY: 340, exitX: 3190, exitY: 370, furniture: '👾 Pinball Machines' },
+      // Manzana Norte-Este (Y: 180 a 340)
+      { id: 'house_bar', name: "The Neon Pub 🍻", x: 2100, y: 180, w: 260, h: 140, doorX: 2230, doorY: 320, exitX: 2230, exitY: 350, furniture: '🍸 Jukebox & Bar' },
+      { id: 'house_shop', name: "Mini Mart 🛒", x: 2450, y: 180, w: 260, h: 140, doorX: 2580, doorY: 320, exitX: 2580, exitY: 350, furniture: '📦 Snack Shelves' },
+      { id: 'house_arcade', name: "Retro Arcade 🕹️", x: 3100, y: 180, w: 260, h: 140, doorX: 3230, doorY: 320, exitX: 3230, exitY: 350, furniture: '👾 Pinball Machines' },
 
-      // Manzana Sur-Oeste
-      { id: 'house_sub1', name: "Suburban Villa A", x: 200, y: 1600, w: 240, h: 160, doorX: 320, doorY: 1760, exitX: 320, exitY: 1790, furniture: '🛏️ Master Suite' },
-      { id: 'house_sub2', name: "Suburban Villa B", x: 500, y: 1600, w: 240, h: 160, doorX: 620, doorY: 1760, exitX: 620, exitY: 1790, furniture: '💻 Office & PC' },
+      // Manzana Sur-Oeste (Y: 1640 a 1800)
+      { id: 'house_sub1', name: "Suburban Villa A", x: 200, y: 1640, w: 220, h: 140, doorX: 310, doorY: 1780, exitX: 310, exitY: 1810, furniture: '🛏️ Master Suite' },
+      { id: 'house_sub2', name: "Suburban Villa B", x: 480, y: 1640, w: 220, h: 140, doorX: 590, doorY: 1780, exitX: 590, exitY: 1810, furniture: '💻 Office & PC' },
 
-      // Manzana Sur-Centro
-      { id: 'house_sub3', name: "Modern Loft A", x: 1050, y: 1600, w: 280, h: 160, doorX: 1190, doorY: 1760, exitX: 1190, exitY: 1790, furniture: '🎨 Art Studio' },
-      { id: 'house_sub4', name: "Modern Loft B", x: 1400, y: 1600, w: 280, h: 160, doorX: 1540, doorY: 1760, exitX: 1540, exitY: 1790, furniture: '📚 Library & Desk' },
+      // Manzana Sur-Centro (Y: 1640 a 1800)
+      { id: 'house_sub3', name: "Modern Loft A", x: 1050, y: 1640, w: 260, h: 140, doorX: 1180, doorY: 1780, exitX: 1180, exitY: 1810, furniture: '🎨 Art Studio' },
+      { id: 'house_sub4', name: "Modern Loft B", x: 1400, y: 1640, w: 260, h: 140, doorX: 1530, doorY: 1780, exitX: 1530, exitY: 1810, furniture: '📚 Library & Desk' },
 
-      // Manzana Sur-Este
-      { id: 'house_hotel', name: "Grand Hotel 🏨", x: 2050, y: 1600, w: 300, h: 160, doorX: 2200, doorY: 1760, exitX: 2200, exitY: 1790, furniture: '🛎️ Lobby Suite' },
-      { id: 'house_bank', name: "Metropolitan Bank 💰", x: 2450, y: 1600, w: 300, h: 160, doorX: 2600, doorY: 1760, exitX: 2600, exitY: 1790, furniture: '🔒 Vault & Gold' },
-      { id: 'house_pizzeria', name: "Pizza Palace 🍕", x: 3050, y: 1600, w: 280, h: 160, doorX: 3190, doorY: 1760, exitX: 3190, exitY: 1790, furniture: '🍕 Oven & Tables' }
+      // Manzana Sur-Este (Y: 1640 a 1800 - Desplazadas fuera de zonas deportivas)
+      { id: 'house_hotel', name: "Grand Hotel 🏨", x: 2900, y: 2000, w: 280, h: 140, doorX: 3040, doorY: 2140, exitX: 3040, exitY: 2170, furniture: '🛎️ Lobby Suite' },
+      { id: 'house_bank', name: "Metropolitan Bank 💰", x: 3250, y: 2000, w: 280, h: 140, doorX: 3390, doorY: 2140, exitX: 3390, exitY: 2170, furniture: '🔒 Vault & Gold' },
+      { id: 'house_pizzeria', name: "Pizza Palace 🍕", x: 3650, y: 2000, w: 260, h: 140, doorX: 3780, doorY: 2140, exitX: 3780, exitY: 2170, furniture: '🍕 Oven & Tables' }
     ];
 
     let outdoorSolids = houses.map(h => ({ x: h.x, y: h.y, w: h.w, h: h.h })).concat([
@@ -262,13 +262,12 @@
       { x: 250, y: 200, w: 300, h: 100 }
     ];
 
-    // Árboles masivos distribuidos estratégicamente por todas las manzanas y parques
     let sceneryTrees = [
       { x: 100, y: 100, r: 45 }, { x: 800, y: 100, r: 50 }, { x: 950, y: 100, r: 48 },
       { x: 1750, y: 100, r: 52 }, { x: 2300, y: 100, r: 45 }, { x: 3000, y: 100, r: 50 },
       { x: 3700, y: 100, r: 55 }, { x: 100, y: 900, r: 48 }, { x: 800, y: 950, r: 50 },
       { x: 1800, y: 900, r: 45 }, { x: 100, y: 2100, r: 52 }, { x: 1100, y: 2200, r: 48 },
-      { x: 2100, y: 2150, r: 50 }, { x: 3100, y: 2100, r: 55 }, { x: 3800, y: 2100, r: 48 }
+      { x: 2100, y: 2150, r: 50 }, { x: 3100, y: 2500, r: 55 }, { x: 3800, y: 2500, r: 48 }
     ];
 
     let streetLights = [
@@ -546,7 +545,7 @@
     }
 
     function initMultiplayerGlobal() {
-      const hostRoomId = `nh-${activeWorldRoom}-host-v310`;
+      const hostRoomId = `nh-${activeWorldRoom}-host-v311`;
       setTimeout(() => {
         peer = new Peer(hostRoomId);
         peer.on('open', () => {
@@ -840,11 +839,11 @@
       ctx.fillStyle = '#fff'; ctx.fillText("PROFESSIONAL SOCCER FIELD ⚽", 2525, 880);
 
       // --- CANCHA DE TENIS ---
-      ctx.fillStyle = '#d35400'; ctx.fillRect(2200, 1620, 520, 320);
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(2200, 1620, 520, 320);
-      ctx.strokeRect(2250, 1670, 420, 220);
-      ctx.beginPath(); ctx.moveTo(2460, 1620); ctx.lineTo(2460, 1940); ctx.stroke();
-      ctx.fillStyle = '#fff'; ctx.fillText("TENNIS COURT 🎾", 2460, 1600);
+      ctx.fillStyle = '#d35400'; ctx.fillRect(2200, 1640, 520, 320);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(2200, 1640, 520, 320);
+      ctx.strokeRect(2250, 1690, 420, 220);
+      ctx.beginPath(); ctx.moveTo(2460, 1640); ctx.lineTo(2460, 1960); ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.fillText("TENNIS COURT 🎾", 2460, 1620);
 
       // Pista del Aeropuerto
       ctx.fillStyle = '#111'; ctx.fillRect(1000, 2250, 1100, 150);
@@ -853,7 +852,7 @@
       ctx.setLineDash([]);
       ctx.fillStyle = '#fff'; ctx.font = 'bold 14px monospace'; ctx.fillText("AIRPORT METROPOLITAN RUNWAY ✈️", 1550, 2225);
 
-      // Dibujar todas las Casas y Edificios urbanizados sin huecos
+      // Dibujar todas las Casas y Edificios urbanizados sin huecos ni superposiciones
       houses.forEach(h => {
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(h.x + 10, h.y + 10, h.w, h.h);
@@ -869,20 +868,20 @@
 
         ctx.fillStyle = '#fff'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
         ctx.fillText(h.name, h.x + h.w / 2, h.y - 37);
-        ctx.font = '9px monospace'; ctx.fillText(h.furniture, h.x + h.w / 2, h.y + 40);
+        ctx.font = '9px monospace'; ctx.fillText(h.furniture, h.x + h.w / 2, h.y + 35);
 
         ctx.fillStyle = '#81d4fa';
-        ctx.fillRect(h.x + 25, h.y + 60, 30, 40);
-        ctx.fillRect(h.x + h.w - 55, h.y + 60, 30, 40);
+        ctx.fillRect(h.x + 25, h.y + 50, 25, 35);
+        ctx.fillRect(h.x + h.w - 50, h.y + 50, 25, 35);
         ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
-        ctx.strokeRect(h.x + 25, h.y + 60, 30, 40);
-        ctx.strokeRect(h.x + h.w - 55, h.y + 60, 30, 40);
+        ctx.strokeRect(h.x + 25, h.y + 50, 25, 35);
+        ctx.strokeRect(h.x + h.w - 50, h.y + 50, 25, 35);
 
         ctx.fillStyle = '#ffeb3b'; ctx.fillRect(h.doorX - 20, h.doorY - 6, 40, 12);
         ctx.fillStyle = '#fff'; ctx.font = '9px monospace'; ctx.fillText("🚪 ENTRANCE", h.doorX, h.doorY - 14);
       });
 
-      // Árboles masivos y estilizados distribuidos de forma uniforme
+      // Árboles masivos distribuidos de forma uniforme
       sceneryTrees.forEach(t => {
         ctx.fillStyle = 'rgba(0,0,0,0.4)';
         ctx.beginPath(); ctx.arc(t.x + 6, t.y + 8, t.r, 0, Math.PI * 2); ctx.fill();
