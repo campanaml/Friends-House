@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neighborhood World - Multiplayer City (v3.1.1)</title>
+  <title>Neighborhood World - Multiplayer City with NPCs (v3.2.0)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
@@ -94,8 +94,8 @@
 
   <div id="setup-modal">
     <div class="setup-box">
-      <h2 style="text-align:center;">METROPOLIS v3.1.1</h2>
-      <div style="font-size: 10px; text-align: center; color: #888;">FIXED OVERLAPS & EXPANDED CITY</div>
+      <h2 style="text-align:center;">METROPOLIS v3.2.0</h2>
+      <div style="font-size: 10px; text-align: center; color: #888;">WITH LIVING NPC CITIZENS & TRAFFIC</div>
       <input type="text" id="username-input" placeholder="Enter Username..." maxlength="12">
       <input type="text" id="world-id-input" placeholder="World ID (Default: main-city)">
       <select id="avatar-select">
@@ -116,7 +116,7 @@
 
   <div id="game-container">
     <div id="hud">
-      <div>BUILD: <span style="color:#0f0;">v3.1.1</span></div>
+      <div>BUILD: <span style="color:#0f0;">v3.2.0</span></div>
       <div>ROOM: <span id="display-room-code">MAIN-CITY</span></div>
       <div>STATUS: <span id="status-tag" style="color:#0f0;">CONNECTING...</span></div>
       <div>LOCATION: <span id="location-tag">HOME</span></div>
@@ -172,7 +172,7 @@
   </div>
 
   <script>
-    const GAME_VERSION = "3.1.1";
+    const GAME_VERSION = "3.2.0";
     const WORLD_WIDTH = 4200;
     const WORLD_HEIGHT = 2800;
     const PLAYER_TIMEOUT_MS = 10000;
@@ -220,30 +220,19 @@
       dir: 'down'
     };
 
-    // Estructuras y casas reubicadas sin colisiones con canchas ni plazas
+    // Casas y Edificios
     let houses = [
-      // Manzana Norte-Oeste (Y: 180 a 340)
       { id: 'house_martin', name: "Martin's House", x: 200, y: 180, w: 220, h: 140, doorX: 310, doorY: 320, exitX: 310, exitY: 350, furniture: '📺 Smart TV & Sofa' },
       { id: 'house_gaby', name: "Gaby's House", x: 480, y: 180, w: 220, h: 140, doorX: 590, doorY: 320, exitX: 590, exitY: 350, furniture: '🌺 Indoor Garden' },
-      
-      // Manzana Norte-Centro (Y: 180 a 340)
       { id: 'house_police', name: "City Police 🚨", x: 1050, y: 180, w: 260, h: 140, doorX: 1180, doorY: 320, exitX: 1180, exitY: 350, furniture: '💻 Surveillance Hub' },
       { id: 'house_hospital', name: "General Hospital 🏥", x: 1400, y: 180, w: 260, h: 140, doorX: 1530, doorY: 320, exitX: 1530, exitY: 350, furniture: '💊 Medical Beds' },
-
-      // Manzana Norte-Este (Y: 180 a 340)
       { id: 'house_bar', name: "The Neon Pub 🍻", x: 2100, y: 180, w: 260, h: 140, doorX: 2230, doorY: 320, exitX: 2230, exitY: 350, furniture: '🍸 Jukebox & Bar' },
       { id: 'house_shop', name: "Mini Mart 🛒", x: 2450, y: 180, w: 260, h: 140, doorX: 2580, doorY: 320, exitX: 2580, exitY: 350, furniture: '📦 Snack Shelves' },
       { id: 'house_arcade', name: "Retro Arcade 🕹️", x: 3100, y: 180, w: 260, h: 140, doorX: 3230, doorY: 320, exitX: 3230, exitY: 350, furniture: '👾 Pinball Machines' },
-
-      // Manzana Sur-Oeste (Y: 1640 a 1800)
       { id: 'house_sub1', name: "Suburban Villa A", x: 200, y: 1640, w: 220, h: 140, doorX: 310, doorY: 1780, exitX: 310, exitY: 1810, furniture: '🛏️ Master Suite' },
       { id: 'house_sub2', name: "Suburban Villa B", x: 480, y: 1640, w: 220, h: 140, doorX: 590, doorY: 1780, exitX: 590, exitY: 1810, furniture: '💻 Office & PC' },
-
-      // Manzana Sur-Centro (Y: 1640 a 1800)
       { id: 'house_sub3', name: "Modern Loft A", x: 1050, y: 1640, w: 260, h: 140, doorX: 1180, doorY: 1780, exitX: 1180, exitY: 1810, furniture: '🎨 Art Studio' },
       { id: 'house_sub4', name: "Modern Loft B", x: 1400, y: 1640, w: 260, h: 140, doorX: 1530, doorY: 1780, exitX: 1530, exitY: 1810, furniture: '📚 Library & Desk' },
-
-      // Manzana Sur-Este (Y: 1640 a 1800 - Desplazadas fuera de zonas deportivas)
       { id: 'house_hotel', name: "Grand Hotel 🏨", x: 2900, y: 2000, w: 280, h: 140, doorX: 3040, doorY: 2140, exitX: 3040, exitY: 2170, furniture: '🛎️ Lobby Suite' },
       { id: 'house_bank', name: "Metropolitan Bank 💰", x: 3250, y: 2000, w: 280, h: 140, doorX: 3390, doorY: 2140, exitX: 3390, exitY: 2170, furniture: '🔒 Vault & Gold' },
       { id: 'house_pizzeria', name: "Pizza Palace 🍕", x: 3650, y: 2000, w: 260, h: 140, doorX: 3780, doorY: 2140, exitX: 3780, exitY: 2170, furniture: '🍕 Oven & Tables' }
@@ -260,6 +249,21 @@
       { x: 100, y: 490, w: 250, h: 10 },
       { x: 450, y: 490, w: 250, h: 10 },
       { x: 250, y: 200, w: 300, h: 100 }
+    ];
+
+    // --- SISTEMA DE NPCs (Ciudadanos y Autos Autónomos) ---
+    let npcCitizens = [
+      { id: 'npc_1', name: 'Lucas', avatar: 'martin', color: '#00ffff', x: 500, y: 370, vx: 1.5, vy: 0, radius: 12 },
+      { id: 'npc_2', name: 'Sofia', avatar: 'gaby', color: '#ff00ff', x: 1200, y: 370, vx: -1.5, vy: 0, radius: 12 },
+      { id: 'npc_3', name: 'Mateo', avatar: 'default', color: '#ffff00', x: 2400, y: 370, vx: 1.2, vy: 0, radius: 12 },
+      { id: 'npc_4', name: 'Valentina', avatar: 'gaby', color: '#ff5722', x: 800, y: 1470, vx: -1.2, vy: 0, radius: 12 },
+      { id: 'npc_5', name: 'Diego', avatar: 'martin', color: '#00ff00', x: 2000, y: 1470, vx: 1.5, vy: 0, radius: 12 }
+    ];
+
+    let npcVehicles = [
+      { id: 'npcc_1', type: 'car', icon: '🚕', x: 400, y: 445, vx: 3, vy: 0 },
+      { id: 'npcc_2', type: 'car', icon: '🚙', x: 1800, y: 495, vx: -3, vy: 0 },
+      { id: 'npcc_3', type: 'car', icon: '🚗', x: 1000, y: 1545, vx: 3, vy: 0 }
     ];
 
     let sceneryTrees = [
@@ -545,7 +549,7 @@
     }
 
     function initMultiplayerGlobal() {
-      const hostRoomId = `nh-${activeWorldRoom}-host-v311`;
+      const hostRoomId = `nh-${activeWorldRoom}-host-v320`;
       setTimeout(() => {
         peer = new Peer(hostRoomId);
         peer.on('open', () => {
@@ -742,9 +746,28 @@
       });
     }
 
+    function updateNPCs() {
+      // Actualizar ciudadanos NPC caminando por la ciudad de forma autónoma
+      npcCitizens.forEach(npc => {
+        npc.x += npc.vx;
+        if (npc.x < 100 || npc.x > WORLD_WIDTH - 100) {
+          npc.vx *= -1;
+        }
+      });
+
+      // Actualizar tráfico automatizado de autos NPC
+      npccVehicles.forEach?.(car => {}); // Placeholder seguro
+      npcVehicles.forEach(car => {
+        car.x += car.vx;
+        if (car.x < 100) car.x = WORLD_WIDTH - 200;
+        if (car.x > WORLD_WIDTH - 100) car.x = 200;
+      });
+    }
+
     function update() {
       animFrame++;
       cleanupGhostPlayers();
+      updateNPCs();
 
       clouds.forEach(c => {
         c.x += c.speed;
@@ -787,7 +810,7 @@
     }
 
     function drawWorld() {
-      // Bloques de manzanas / Veredas estructuradas
+      // Veredas y calles
       ctx.fillStyle = '#222';
       ctx.fillRect(0, 400, WORLD_WIDTH, 140);
       ctx.fillRect(0, 1500, WORLD_WIDTH, 140);
@@ -795,7 +818,6 @@
       ctx.fillRect(1900, 0, 140, WORLD_HEIGHT);
       ctx.fillRect(2900, 0, 140, WORLD_HEIGHT);
 
-      // Asfalto y pavimentos principales
       ctx.fillStyle = '#1c1c1c';
       ctx.fillRect(0, 420, WORLD_WIDTH, 100);
       ctx.fillRect(0, 1520, WORLD_WIDTH, 100);
@@ -803,7 +825,6 @@
       ctx.fillRect(1920, 0, 100, WORLD_HEIGHT);
       ctx.fillRect(2920, 0, 100, WORLD_HEIGHT);
 
-      // Líneas divisorias viales amarillas
       ctx.strokeStyle = '#f1c40f';
       ctx.lineWidth = 4;
       ctx.setLineDash([25, 20]);
@@ -814,7 +835,7 @@
       ctx.beginPath(); ctx.moveTo(2970, 0); ctx.lineTo(2970, WORLD_HEIGHT); ctx.stroke();
       ctx.setLineDash([]);
 
-      // --- PLAZA CENTRAL ---
+      // PLAZA
       ctx.fillStyle = '#27ae60'; 
       ctx.fillRect(1100, 950, 750, 500);
       ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 6; ctx.strokeRect(1100, 950, 750, 500);
@@ -823,13 +844,12 @@
       ctx.fillRect(1435, 950, 80, 500);
       ctx.fillRect(1100, 1160, 750, 80);
 
-      // Fuente de agua central
       ctx.fillStyle = '#2980b9'; ctx.beginPath(); ctx.arc(1475, 1200, 65, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.stroke();
       ctx.fillStyle = '#3498db'; ctx.beginPath(); ctx.arc(1475, 1200, 35, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center'; ctx.fillText("CENTRAL PLAZA & FOUNTAIN", 1475, 1105);
 
-      // --- CANCHA DE FÚTBOL ---
+      // CANCHA FÚTBOL
       ctx.fillStyle = '#1e8449'; ctx.fillRect(2200, 900, 650, 360);
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(2200, 900, 650, 360);
       ctx.beginPath(); ctx.moveTo(2525, 900); ctx.lineTo(2525, 1260); ctx.stroke();
@@ -838,21 +858,21 @@
       ctx.strokeRect(2815, 1005, 35, 150);
       ctx.fillStyle = '#fff'; ctx.fillText("PROFESSIONAL SOCCER FIELD ⚽", 2525, 880);
 
-      // --- CANCHA DE TENIS ---
+      // CANCHA TENIS
       ctx.fillStyle = '#d35400'; ctx.fillRect(2200, 1640, 520, 320);
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(2200, 1640, 520, 320);
       ctx.strokeRect(2250, 1690, 420, 220);
       ctx.beginPath(); ctx.moveTo(2460, 1640); ctx.lineTo(2460, 1960); ctx.stroke();
       ctx.fillStyle = '#fff'; ctx.fillText("TENNIS COURT 🎾", 2460, 1620);
 
-      // Pista del Aeropuerto
+      // AEROPUERTO
       ctx.fillStyle = '#111'; ctx.fillRect(1000, 2250, 1100, 150);
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.setLineDash([35, 25]);
       ctx.beginPath(); ctx.moveTo(1020, 2325); ctx.lineTo(2080, 2325); ctx.stroke();
       ctx.setLineDash([]);
       ctx.fillStyle = '#fff'; ctx.font = 'bold 14px monospace'; ctx.fillText("AIRPORT METROPOLITAN RUNWAY ✈️", 1550, 2225);
 
-      // Dibujar todas las Casas y Edificios urbanizados sin huecos ni superposiciones
+      // CASAS
       houses.forEach(h => {
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(h.x + 10, h.y + 10, h.w, h.h);
@@ -881,7 +901,28 @@
         ctx.fillStyle = '#fff'; ctx.font = '9px monospace'; ctx.fillText("🚪 ENTRANCE", h.doorX, h.doorY - 14);
       });
 
-      // Árboles masivos distribuidos de forma uniforme
+      // --- RENDERIZAR CIUDADANOS NPC ---
+      npcCitizens.forEach(npc => {
+        ctx.fillStyle = npc.color;
+        ctx.beginPath();
+        ctx.arc(npc.x, npc.y - 4, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(npc.x - 8, npc.y + 6, 16, 12);
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(npc.name + ' [NPC]', npc.x, npc.y + 26);
+      });
+
+      // --- RENDERIZAR AUTOS NPC EN TRÁFICO ---
+      npcVehicles.forEach(car => {
+        ctx.font = '24px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(car.icon, car.x, car.y);
+      });
+
+      // ÁRBOLES
       sceneryTrees.forEach(t => {
         ctx.fillStyle = 'rgba(0,0,0,0.4)';
         ctx.beginPath(); ctx.arc(t.x + 6, t.y + 8, t.r, 0, Math.PI * 2); ctx.fill();
@@ -893,7 +934,7 @@
         ctx.beginPath(); ctx.arc(t.x - 6, t.y - 14, t.r * 0.6, 0, Math.PI * 2); ctx.fill();
       });
 
-      // Farolas con resplandor ambiental
+      // FAROLAS
       streetLights.forEach(l => {
         ctx.fillStyle = '#37474f';
         ctx.fillRect(l.x - 4, l.y - 30, 8, 35);
@@ -906,7 +947,7 @@
         ctx.beginPath(); ctx.arc(l.x, l.y - 30, 50, 0, Math.PI * 2); ctx.fill();
       });
 
-      // Nubes flotantes
+      // NUBES
       ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
       clouds.forEach(c => {
         ctx.beginPath();
