@@ -3,13 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neighborhood World - Mega City PRO (v4.1.1)</title>
+  <title>Neighborhood World - Mega City PRO (v4.1.2)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
     body { background: #000; color: #fff; overflow: hidden; }
 
-    /* --- NUEVO ESTILO DE LOGIN / SETUP MODAL --- */
     #setup-modal {
       position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
       background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
@@ -108,10 +107,9 @@
 </head>
 <body>
 
-  <!-- MODAL DE LOGIN / SETUP MEJORADO -->
   <div id="setup-modal">
     <div class="setup-box">
-      <h2 style="text-align:center;">MEGA CITY v4.1.1</h2>
+      <h2 style="text-align:center;">MEGA CITY v4.1.2</h2>
       <div style="font-size: 10px; text-align: center; color: #00ffcc;">ACTIVE TRAFFIC & CROSSWALKS</div>
       
       <label for="username-input">Citizen Name</label>
@@ -142,7 +140,7 @@
 
   <div id="game-container">
     <div id="hud">
-      <div>BUILD: <span style="color:#0f0;">v4.1.1 MEGA</span></div>
+      <div>BUILD: <span style="color:#0f0;">v4.1.2 MEGA</span></div>
       <div>ROOM: <span id="display-room-code">MAIN-CITY</span></div>
       <div>STATUS: <span id="status-tag" style="color:#0f0;">CONNECTING...</span></div>
       <div>LOCATION: <span id="location-tag">HOME</span></div>
@@ -198,7 +196,7 @@
   </div>
 
   <script>
-    const GAME_VERSION = "4.1.1";
+    const GAME_VERSION = "4.1.2";
     const WORLD_WIDTH = 4200;
     const WORLD_HEIGHT = 2800;
     const PLAYER_TIMEOUT_MS = 10000;
@@ -206,7 +204,6 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
-    // Cargar datos guardados previamente en el login si existen
     window.addEventListener('DOMContentLoaded', () => {
       const lastUser = localStorage.getItem('nh_last_username');
       const lastColor = localStorage.getItem('nh_last_color');
@@ -278,10 +275,11 @@
       dir: 'down'
     };
 
+    // --- CASA DE GABY Y POLICÍA INTERCAMBIADAS ---
     let houses = [
       { id: 'house_martin', name: "Martin's House", x: 200, y: 180, w: 220, h: 140, doorX: 310, doorY: 320, exitX: 310, exitY: 370, furniture: '📺 Smart TV & Sofa' },
-      { id: 'house_gaby', name: "Gaby's House", x: 480, y: 180, w: 220, h: 140, doorX: 590, doorY: 320, exitX: 590, exitY: 370, furniture: '🌺 Indoor Garden' },
-      { id: 'house_police', name: "City Police 🚨", x: 1050, y: 180, w: 260, h: 140, doorX: 1180, doorY: 320, exitX: 1180, exitY: 370, furniture: '💻 Surveillance Hub' },
+      { id: 'house_police', name: "City Police 🚨", x: 480, y: 180, w: 260, h: 140, doorX: 590, doorY: 320, exitX: 590, exitY: 370, furniture: '💻 Surveillance Hub' },
+      { id: 'house_gaby', name: "Gaby's House", x: 1050, y: 180, w: 220, h: 140, doorX: 1180, doorY: 320, exitX: 1180, exitY: 370, furniture: '🌺 Indoor Garden' },
       { id: 'house_hospital', name: "General Hospital 🏥", x: 1400, y: 180, w: 260, h: 140, doorX: 1530, doorY: 320, exitX: 1530, exitY: 370, furniture: '💊 Medical Beds' },
       { id: 'house_bar', name: "The Neon Pub 🍻", x: 2100, y: 180, w: 260, h: 140, doorX: 2230, doorY: 320, exitX: 2230, exitY: 370, furniture: '🍸 Jukebox & Bar' },
       { id: 'house_shop', name: "Mini Mart 🛒", x: 2450, y: 180, w: 260, h: 140, doorX: 2580, doorY: 320, exitX: 2580, exitY: 370, furniture: '📦 Snack Shelves' },
@@ -384,9 +382,7 @@
         try {
           audioCtx = new (window.AudioContext || window.webkitAudioContext)();
           startAmbientTrafficSound();
-        } catch(e) {
-          console.log("Audio API Error:", e);
-        }
+        } catch(e) {}
       } else if (audioCtx.state === 'suspended') {
         audioCtx.resume();
       }
@@ -398,26 +394,20 @@
         let bufferSize = audioCtx.sampleRate * 2;
         let noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
         let output = noiseBuffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-          output[i] = Math.random() * 2 - 1;
-        }
+        for (let i = 0; i < bufferSize; i++) { output[i] = Math.random() * 2 - 1; }
 
         let whiteNoise = audioCtx.createBufferSource();
-        whiteNoise.buffer = noiseBuffer;
-        whiteNoise.loop = true;
+        whiteNoise.buffer = noiseBuffer; whiteNoise.loop = true;
 
         let filter = audioCtx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(320, audioCtx.currentTime);
+        filter.type = 'lowpass'; filter.frequency.setValueAtTime(320, audioCtx.currentTime);
 
         let gain = audioCtx.createGain();
         gain.gain.setValueAtTime(0.018, audioCtx.currentTime);
 
-        whiteNoise.connect(filter);
-        filter.connect(gain);
-        gain.connect(audioCtx.destination);
+        whiteNoise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
         whiteNoise.start(0);
-      } catch(e) { console.log(e); }
+      } catch(e) {}
     }
     
     function playTone(freq, type, duration, vol) {
@@ -478,8 +468,7 @@
       if (localPlayer.coins >= item.price) {
         localPlayer.coins -= item.price;
         localPlayer.inventory.push({ ...item, instanceId: Math.random().toString(36).substring(2, 7) });
-        savePlayerData();
-        playCoinSFX();
+        savePlayerData(); playCoinSFX();
         showNotification(`Purchased ${item.name}!`, 'success');
         if (document.getElementById('inventory-modal').style.display === 'block') renderInventory();
       } else {
@@ -529,9 +518,7 @@
         localPlayer.equippedHat = hatId;
         showNotification("Hat equipped!", 'success');
       }
-      playEquipSFX();
-      savePlayerData();
-      renderInventory();
+      playEquipSFX(); savePlayerData(); renderInventory();
       broadcast({ type: 'move', player: localPlayer, vehicles });
     }
 
@@ -567,8 +554,7 @@
       }
 
       localPlayer.inventory.splice(index, 1);
-      savePlayerData();
-      renderInventory();
+      savePlayerData(); renderInventory();
       broadcast({ type: 'move', player: localPlayer, vehicles });
       updatePlayerList();
     }
@@ -605,8 +591,6 @@
     function enterHouse() {
       initAudio();
       let customName = document.getElementById('username-input').value.trim();
-      
-      // Auto-generar nombre aleatorio si está vacío
       if (!customName) {
         customName = `Citizen_${Math.floor(1000 + Math.random() * 9000)}`;
       }
@@ -614,7 +598,6 @@
       selectedAvatar = document.getElementById('avatar-select').value;
       selectedColor = document.getElementById('color-select').value;
       
-      // Guardar preferencias en localStorage
       localStorage.setItem('nh_last_username', customName);
       localStorage.setItem('nh_last_color', selectedColor);
 
