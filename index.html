@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neighborhood World - Multiplayer City with NPCs (v3.2.0)</title>
+  <title>Neighborhood World - Multiplayer City with NPCs (v3.2.1)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
@@ -26,7 +26,7 @@
     .setup-box button:hover { background: #fff; color: #000; }
 
     #game-container { display: none; width: 100vw; height: 100vh; position: relative; }
-    canvas { display: block; background: #1b4d2e; width: 100vw; height: 100vh; }
+    canvas { display: block; background: #27ae60; width: 100vw; height: 100vh; }
 
     #hud {
       position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.85);
@@ -94,8 +94,8 @@
 
   <div id="setup-modal">
     <div class="setup-box">
-      <h2 style="text-align:center;">METROPOLIS v3.2.0</h2>
-      <div style="font-size: 10px; text-align: center; color: #888;">WITH LIVING NPC CITIZENS & TRAFFIC</div>
+      <h2 style="text-align:center;">METROPOLIS v3.2.1</h2>
+      <div style="font-size: 10px; text-align: center; color: #888;">FIXED COLLISION & MOVEMENT LOCK</div>
       <input type="text" id="username-input" placeholder="Enter Username..." maxlength="12">
       <input type="text" id="world-id-input" placeholder="World ID (Default: main-city)">
       <select id="avatar-select">
@@ -116,7 +116,7 @@
 
   <div id="game-container">
     <div id="hud">
-      <div>BUILD: <span style="color:#0f0;">v3.2.0</span></div>
+      <div>BUILD: <span style="color:#0f0;">v3.2.1</span></div>
       <div>ROOM: <span id="display-room-code">MAIN-CITY</span></div>
       <div>STATUS: <span id="status-tag" style="color:#0f0;">CONNECTING...</span></div>
       <div>LOCATION: <span id="location-tag">HOME</span></div>
@@ -130,7 +130,7 @@
       <button onclick="sendEmote('😂')">😂</button>
       <button onclick="toggleShop()">SHOP (B)</button>
       <button onclick="toggleInventory()">BACKPACK (I)</button>
-      <button onclick="resetPosition()">RESET</button>
+      <button onclick="resetPosition()">RESET (SAFE)</button>
     </div>
 
     <div id="notification-zone"></div>
@@ -172,7 +172,7 @@
   </div>
 
   <script>
-    const GAME_VERSION = "3.2.0";
+    const GAME_VERSION = "3.2.1";
     const WORLD_WIDTH = 4200;
     const WORLD_HEIGHT = 2800;
     const PLAYER_TIMEOUT_MS = 10000;
@@ -205,8 +205,8 @@
       name: 'Player',
       avatar: 'martin',
       color: '#ffffff',
-      x: 350,
-      y: 400,
+      x: 310,
+      y: 350,
       radius: 12,
       speed: 4,
       location: 'house_martin',
@@ -220,22 +220,21 @@
       dir: 'down'
     };
 
-    // Casas y Edificios
     let houses = [
-      { id: 'house_martin', name: "Martin's House", x: 200, y: 180, w: 220, h: 140, doorX: 310, doorY: 320, exitX: 310, exitY: 350, furniture: '📺 Smart TV & Sofa' },
-      { id: 'house_gaby', name: "Gaby's House", x: 480, y: 180, w: 220, h: 140, doorX: 590, doorY: 320, exitX: 590, exitY: 350, furniture: '🌺 Indoor Garden' },
-      { id: 'house_police', name: "City Police 🚨", x: 1050, y: 180, w: 260, h: 140, doorX: 1180, doorY: 320, exitX: 1180, exitY: 350, furniture: '💻 Surveillance Hub' },
-      { id: 'house_hospital', name: "General Hospital 🏥", x: 1400, y: 180, w: 260, h: 140, doorX: 1530, doorY: 320, exitX: 1530, exitY: 350, furniture: '💊 Medical Beds' },
-      { id: 'house_bar', name: "The Neon Pub 🍻", x: 2100, y: 180, w: 260, h: 140, doorX: 2230, doorY: 320, exitX: 2230, exitY: 350, furniture: '🍸 Jukebox & Bar' },
-      { id: 'house_shop', name: "Mini Mart 🛒", x: 2450, y: 180, w: 260, h: 140, doorX: 2580, doorY: 320, exitX: 2580, exitY: 350, furniture: '📦 Snack Shelves' },
-      { id: 'house_arcade', name: "Retro Arcade 🕹️", x: 3100, y: 180, w: 260, h: 140, doorX: 3230, doorY: 320, exitX: 3230, exitY: 350, furniture: '👾 Pinball Machines' },
-      { id: 'house_sub1', name: "Suburban Villa A", x: 200, y: 1640, w: 220, h: 140, doorX: 310, doorY: 1780, exitX: 310, exitY: 1810, furniture: '🛏️ Master Suite' },
-      { id: 'house_sub2', name: "Suburban Villa B", x: 480, y: 1640, w: 220, h: 140, doorX: 590, doorY: 1780, exitX: 590, exitY: 1810, furniture: '💻 Office & PC' },
-      { id: 'house_sub3', name: "Modern Loft A", x: 1050, y: 1640, w: 260, h: 140, doorX: 1180, doorY: 1780, exitX: 1180, exitY: 1810, furniture: '🎨 Art Studio' },
-      { id: 'house_sub4', name: "Modern Loft B", x: 1400, y: 1640, w: 260, h: 140, doorX: 1530, doorY: 1780, exitX: 1530, exitY: 1810, furniture: '📚 Library & Desk' },
-      { id: 'house_hotel', name: "Grand Hotel 🏨", x: 2900, y: 2000, w: 280, h: 140, doorX: 3040, doorY: 2140, exitX: 3040, exitY: 2170, furniture: '🛎️ Lobby Suite' },
-      { id: 'house_bank', name: "Metropolitan Bank 💰", x: 3250, y: 2000, w: 280, h: 140, doorX: 3390, doorY: 2140, exitX: 3390, exitY: 2170, furniture: '🔒 Vault & Gold' },
-      { id: 'house_pizzeria', name: "Pizza Palace 🍕", x: 3650, y: 2000, w: 260, h: 140, doorX: 3780, doorY: 2140, exitX: 3780, exitY: 2170, furniture: '🍕 Oven & Tables' }
+      { id: 'house_martin', name: "Martin's House", x: 200, y: 180, w: 220, h: 140, doorX: 310, doorY: 320, exitX: 310, exitY: 360, furniture: '📺 Smart TV & Sofa' },
+      { id: 'house_gaby', name: "Gaby's House", x: 480, y: 180, w: 220, h: 140, doorX: 590, doorY: 320, exitX: 590, exitY: 360, furniture: '🌺 Indoor Garden' },
+      { id: 'house_police', name: "City Police 🚨", x: 1050, y: 180, w: 260, h: 140, doorX: 1180, doorY: 320, exitX: 1180, exitY: 360, furniture: '💻 Surveillance Hub' },
+      { id: 'house_hospital', name: "General Hospital 🏥", x: 1400, y: 180, w: 260, h: 140, doorX: 1530, doorY: 320, exitX: 1530, exitY: 360, furniture: '💊 Medical Beds' },
+      { id: 'house_bar', name: "The Neon Pub 🍻", x: 2100, y: 180, w: 260, h: 140, doorX: 2230, doorY: 320, exitX: 2230, exitY: 360, furniture: '🍸 Jukebox & Bar' },
+      { id: 'house_shop', name: "Mini Mart 🛒", x: 2450, y: 180, w: 260, h: 140, doorX: 2580, doorY: 320, exitX: 2580, exitY: 360, furniture: '📦 Snack Shelves' },
+      { id: 'house_arcade', name: "Retro Arcade 🕹️", x: 3100, y: 180, w: 260, h: 140, doorX: 3230, doorY: 320, exitX: 3230, exitY: 360, furniture: '👾 Pinball Machines' },
+      { id: 'house_sub1', name: "Suburban Villa A", x: 200, y: 1640, w: 220, h: 140, doorX: 310, doorY: 1780, exitX: 310, exitY: 1820, furniture: '🛏️ Master Suite' },
+      { id: 'house_sub2', name: "Suburban Villa B", x: 480, y: 1640, w: 220, h: 140, doorX: 590, doorY: 1780, exitX: 590, exitY: 1820, furniture: '💻 Office & PC' },
+      { id: 'house_sub3', name: "Modern Loft A", x: 1050, y: 1640, w: 260, h: 140, doorX: 1180, doorY: 1780, exitX: 1180, exitY: 1820, furniture: '🎨 Art Studio' },
+      { id: 'house_sub4', name: "Modern Loft B", x: 1400, y: 1640, w: 260, h: 140, doorX: 1530, doorY: 1780, exitX: 1530, exitY: 1820, furniture: '📚 Library & Desk' },
+      { id: 'house_hotel', name: "Grand Hotel 🏨", x: 2900, y: 2000, w: 280, h: 140, doorX: 3040, doorY: 2140, exitX: 3040, exitY: 2180, furniture: '🛎️ Lobby Suite' },
+      { id: 'house_bank', name: "Metropolitan Bank 💰", x: 3250, y: 2000, w: 280, h: 140, doorX: 3390, doorY: 2140, exitX: 3390, exitY: 2180, furniture: '🔒 Vault & Gold' },
+      { id: 'house_pizzeria', name: "Pizza Palace 🍕", x: 3650, y: 2000, w: 260, h: 140, doorX: 3780, doorY: 2140, exitX: 3780, exitY: 2180, furniture: '🍕 Oven & Tables' }
     ];
 
     let outdoorSolids = houses.map(h => ({ x: h.x, y: h.y, w: h.w, h: h.h })).concat([
@@ -251,7 +250,6 @@
       { x: 250, y: 200, w: 300, h: 100 }
     ];
 
-    // --- SISTEMA DE NPCs (Ciudadanos y Autos Autónomos) ---
     let npcCitizens = [
       { id: 'npc_1', name: 'Lucas', avatar: 'martin', color: '#00ffff', x: 500, y: 370, vx: 1.5, vy: 0, radius: 12 },
       { id: 'npc_2', name: 'Sofia', avatar: 'gaby', color: '#ff00ff', x: 1200, y: 370, vx: -1.5, vy: 0, radius: 12 },
@@ -445,7 +443,7 @@
         }, 8000);
       } else if (item.id === 'item_teleport') {
         localPlayer.location = `house_${localPlayer.avatar}`;
-        localPlayer.x = 350; localPlayer.y = 400;
+        localPlayer.x = 310; localPlayer.y = 350;
         let homeObj = houses.find(h => h.id === localPlayer.location);
         document.getElementById('location-tag').innerText = homeObj ? homeObj.name.toUpperCase() : "HOME";
         showNotification("Teleported Home!", 'success');
@@ -480,9 +478,10 @@
       }
       localPlayer.isMounted = false;
       localPlayer.location = `house_${localPlayer.avatar}`;
-      localPlayer.x = 350; localPlayer.y = 400;
+      localPlayer.x = 310; localPlayer.y = 350;
       let homeObj = houses.find(h => h.id === localPlayer.location);
       document.getElementById('location-tag').innerText = homeObj ? homeObj.name.toUpperCase() : "HOME";
+      showNotification("Rescued to safe zone!", 'success');
       broadcast({ type: 'move', player: localPlayer, vehicles });
       updatePlayerList();
     }
@@ -501,6 +500,8 @@
       localPlayer.color = selectedColor;
       localPlayer.id = Math.random().toString(36).substring(2, 7);
       localPlayer.location = `house_${selectedAvatar}`;
+      localPlayer.x = 310;
+      localPlayer.y = 350;
 
       const savedCoins = localStorage.getItem(`nh_coins_${localPlayer.name}`);
       localPlayer.coins = savedCoins !== null ? parseInt(savedCoins, 10) : 100;
@@ -549,7 +550,7 @@
     }
 
     function initMultiplayerGlobal() {
-      const hostRoomId = `nh-${activeWorldRoom}-host-v320`;
+      const hostRoomId = `nh-${activeWorldRoom}-host-v321`;
       setTimeout(() => {
         peer = new Peer(hostRoomId);
         peer.on('open', () => {
@@ -747,7 +748,6 @@
     }
 
     function updateNPCs() {
-      // Actualizar ciudadanos NPC caminando por la ciudad de forma autónoma
       npcCitizens.forEach(npc => {
         npc.x += npc.vx;
         if (npc.x < 100 || npc.x > WORLD_WIDTH - 100) {
@@ -755,8 +755,6 @@
         }
       });
 
-      // Actualizar tráfico automatizado de autos NPC
-      npccVehicles.forEach?.(car => {}); // Placeholder seguro
       npcVehicles.forEach(car => {
         car.x += car.vx;
         if (car.x < 100) car.x = WORLD_WIDTH - 200;
@@ -810,7 +808,6 @@
     }
 
     function drawWorld() {
-      // Veredas y calles
       ctx.fillStyle = '#222';
       ctx.fillRect(0, 400, WORLD_WIDTH, 140);
       ctx.fillRect(0, 1500, WORLD_WIDTH, 140);
@@ -835,7 +832,6 @@
       ctx.beginPath(); ctx.moveTo(2970, 0); ctx.lineTo(2970, WORLD_HEIGHT); ctx.stroke();
       ctx.setLineDash([]);
 
-      // PLAZA
       ctx.fillStyle = '#27ae60'; 
       ctx.fillRect(1100, 950, 750, 500);
       ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 6; ctx.strokeRect(1100, 950, 750, 500);
@@ -849,7 +845,6 @@
       ctx.fillStyle = '#3498db'; ctx.beginPath(); ctx.arc(1475, 1200, 35, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center'; ctx.fillText("CENTRAL PLAZA & FOUNTAIN", 1475, 1105);
 
-      // CANCHA FÚTBOL
       ctx.fillStyle = '#1e8449'; ctx.fillRect(2200, 900, 650, 360);
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(2200, 900, 650, 360);
       ctx.beginPath(); ctx.moveTo(2525, 900); ctx.lineTo(2525, 1260); ctx.stroke();
@@ -858,21 +853,18 @@
       ctx.strokeRect(2815, 1005, 35, 150);
       ctx.fillStyle = '#fff'; ctx.fillText("PROFESSIONAL SOCCER FIELD ⚽", 2525, 880);
 
-      // CANCHA TENIS
       ctx.fillStyle = '#d35400'; ctx.fillRect(2200, 1640, 520, 320);
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(2200, 1640, 520, 320);
       ctx.strokeRect(2250, 1690, 420, 220);
       ctx.beginPath(); ctx.moveTo(2460, 1640); ctx.lineTo(2460, 1960); ctx.stroke();
       ctx.fillStyle = '#fff'; ctx.fillText("TENNIS COURT 🎾", 2460, 1620);
 
-      // AEROPUERTO
       ctx.fillStyle = '#111'; ctx.fillRect(1000, 2250, 1100, 150);
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.setLineDash([35, 25]);
       ctx.beginPath(); ctx.moveTo(1020, 2325); ctx.lineTo(2080, 2325); ctx.stroke();
       ctx.setLineDash([]);
       ctx.fillStyle = '#fff'; ctx.font = 'bold 14px monospace'; ctx.fillText("AIRPORT METROPOLITAN RUNWAY ✈️", 1550, 2225);
 
-      // CASAS
       houses.forEach(h => {
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(h.x + 10, h.y + 10, h.w, h.h);
@@ -901,7 +893,6 @@
         ctx.fillStyle = '#fff'; ctx.font = '9px monospace'; ctx.fillText("🚪 ENTRANCE", h.doorX, h.doorY - 14);
       });
 
-      // --- RENDERIZAR CIUDADANOS NPC ---
       npcCitizens.forEach(npc => {
         ctx.fillStyle = npc.color;
         ctx.beginPath();
@@ -915,14 +906,12 @@
         ctx.fillText(npc.name + ' [NPC]', npc.x, npc.y + 26);
       });
 
-      // --- RENDERIZAR AUTOS NPC EN TRÁFICO ---
       npcVehicles.forEach(car => {
         ctx.font = '24px monospace';
         ctx.textAlign = 'center';
         ctx.fillText(car.icon, car.x, car.y);
       });
 
-      // ÁRBOLES
       sceneryTrees.forEach(t => {
         ctx.fillStyle = 'rgba(0,0,0,0.4)';
         ctx.beginPath(); ctx.arc(t.x + 6, t.y + 8, t.r, 0, Math.PI * 2); ctx.fill();
@@ -934,7 +923,6 @@
         ctx.beginPath(); ctx.arc(t.x - 6, t.y - 14, t.r * 0.6, 0, Math.PI * 2); ctx.fill();
       });
 
-      // FAROLAS
       streetLights.forEach(l => {
         ctx.fillStyle = '#37474f';
         ctx.fillRect(l.x - 4, l.y - 30, 8, 35);
@@ -947,7 +935,6 @@
         ctx.beginPath(); ctx.arc(l.x, l.y - 30, 50, 0, Math.PI * 2); ctx.fill();
       });
 
-      // NUBES
       ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
       clouds.forEach(c => {
         ctx.beginPath();
