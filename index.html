@@ -70,7 +70,7 @@
     #hud div span { font-weight: 700; }
     
     #hud-controls {
-      position: absolute; top: 16px; right: 16px; z-index: 10; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; max-width: 520px;
+      position: absolute; top: 16px; right: 16px; z-index: 10; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; max-width: 650px;
     }
     #hud-controls button {
       background: rgba(12, 18, 28, 0.8); color: #fff; border: 1px solid rgba(255,255,255,0.15);
@@ -178,6 +178,8 @@
     </div>
 
     <div id="hud-controls">
+      <button onclick="toggleSuperSaiyan()" style="border-color:#ffcc00; color:#ffcc00;">🔥 SSJ (X)</button>
+      <button onclick="fireKamehameha()" style="border-color:#00b3f0; color:#00b3f0;">💨 KAMEHAMEHA (Z)</button>
       <button onclick="sendEmote('👋')">👋</button>
       <button onclick="sendEmote('❤️')">❤️</button>
       <button onclick="sendEmote('😂')">😂</button>
@@ -288,6 +290,7 @@
     let visualTime = 0;
     let camera = { x: 0, y: 0, zoom: 1 };
     let particles = [];
+    let beams = []; // Nuevo array global para los poderes de DBZ
     let dayClock = 0.24; 
     let cameraShake = 0;
     let zonePulse = 0;
@@ -313,6 +316,7 @@
       equippedHat: null,
       isMounted: false,
       hasAura: false,
+      isSuperSaiyan: false,
       vehicle: null,
       isMoving: false,
       dir: 'down'
@@ -574,6 +578,33 @@
       broadcast({ type: 'move', player: localPlayer, vehicles });
     }
 
+    function toggleSuperSaiyan() {
+      localPlayer.isSuperSaiyan = !localPlayer.isSuperSaiyan;
+      if (localPlayer.isSuperSaiyan) {
+        showNotification("SUPER SAIYAN!", 'success');
+        playPowerupSFX();
+        spawnParticle(localPlayer.x, localPlayer.y, '#ffd86b', 40, 5, 50, 4);
+      }
+      broadcast({ type: 'move', player: localPlayer, vehicles });
+    }
+
+    function fireKamehameha() {
+      if (localPlayer.vehicle) return; // Sin poderes dentro de autos
+      showNotification("KAMEHAMEHA!", 'normal');
+      playPowerupSFX();
+      
+      let speed = 20;
+      let vx = 0, vy = 0;
+      if (localPlayer.dir === 'up') vy = -speed;
+      else if (localPlayer.dir === 'down') vy = speed;
+      else if (localPlayer.dir === 'left') vx = -speed;
+      else vx = speed;
+
+      let beam = { x: localPlayer.x, y: localPlayer.y - 10, vx, vy, life: 60, owner: localPlayer.id };
+      beams.push(beam);
+      broadcast({ type: 'beam', beam: beam });
+    }
+
     function useItem(index) {
       const item = localPlayer.inventory[index];
       if (!item) return;
@@ -767,6 +798,11 @@
           if (isHost) {
             for (let pId in connections) if (pId !== conn.peer && connections[pId].open) connections[pId].send(data);
           }
+        } else if (data.type === 'beam') {
+          beams.push(data.beam);
+          if (isHost) {
+            for (let pId in connections) if (pId !== conn.peer && connections[pId].open) connections[pId].send(data);
+          }
         }
         updatePlayerList();
       });
@@ -812,6 +848,8 @@
       if (e.key.toLowerCase() === 'e') triggerInteraction();
       if (e.key.toLowerCase() === 'b') toggleShop();
       if (e.key.toLowerCase() === 'i') toggleInventory();
+      if (e.key.toLowerCase() === 'x') toggleSuperSaiyan();
+      if (e.key.toLowerCase() === 'z') fireKamehameha();
     });
     window.addEventListener('keyup', e => {
       if (document.activeElement === document.getElementById('chat-input')) return;
@@ -936,6 +974,16 @@
       cleanupGhostPlayers();
       updateNPCs();
 
+      // Actualizar Rayos Kamehameha
+      for (let i = beams.length - 1; i >= 0; i--) {
+        let b = beams[i];
+        b.x += b.vx;
+        b.y += b.vy;
+        b.life--;
+        spawnParticle(b.x, b.y, '#61d3ff', 3, 2, 20, 4);
+        if (b.life <= 0) beams.splice(i, 1);
+      }
+
       clouds.forEach(c => {
         c.x += c.speed;
         if (c.x > WORLD_WIDTH + 100) c.x = -100;
@@ -943,6 +991,7 @@
 
       let currentSpeed = localPlayer.speed;
       if (localPlayer.hasAura) currentSpeed += 3;
+      if (localPlayer.isSuperSaiyan) currentSpeed += 4.5;
       if (localPlayer.isMounted) currentSpeed += 2.2;
       
       if (localPlayer.vehicle) {
@@ -1334,105 +1383,160 @@
       if(nameText){
         ctx.save();ctx.font='700 10px system-ui,sans-serif';ctx.textAlign='center';
         const tw=ctx.measureText(nameText).width+14;
-        ctx.fillStyle='rgba(8,12,18,0.82)';roundedRectPath(x-tw/2,y+25,tw,16,8);ctx.fill();
-        ctx.fillStyle='#fff';ctx.fillText(nameText,x,y+36);ctx.restore();
-      }
-    }
-
-    function drawAvatar(p) {
-      ctx.save();
-      let renderY=p.y;
-      if(p.hasAura){
-        const pulse=18+Math.sin(animFrame*.12)*5;
-        const g=ctx.createRadialGradient(p.x,p.y,pulse*.15,p.x,p.y,pulse*2.4);
-        g.addColorStop(0,'rgba(0,255,204,0.5)');g.addColorStop(1,'rgba(0,255,204,0)');
-        ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,pulse*2.4,0,Math.PI*2);ctx.fill();
-      }
-      if(p.isMounted && !p.vehicle){
-        ctx.shadowBlur=18;ctx.shadowColor='#00ffcc';ctx.fillStyle='#00ffcc';
-        roundedRectPath(p.x-18,p.y+10,36,7,4);ctx.fill();
-        ctx.fillStyle='#ffffff';ctx.fillRect(p.x-12,p.y+17,7,2);ctx.fillRect(p.x+5,p.y+17,7,2);
-        ctx.shadowBlur=0;renderY-=5;
-      }
-      const cycle=p.isMoving?animFrame*.34:0;
-      drawCharacterEntity(p.x,renderY,p.color||'#fff','',cycle,p.isMoving?'walk':'none');
-
-      if(!p.vehicle){
-        if(p.equippedHat==='item_sunglasses'){
-          ctx.fillStyle='#0a0f18';ctx.strokeStyle='#00ffcc';ctx.lineWidth=1.5;
-          roundedRectPath(p.x-7,renderY-19,14,5,2);ctx.fill();ctx.stroke();
-        }else if(p.equippedHat==='item_crown'){
-          ctx.fillStyle='#ffd86b';ctx.shadowBlur=10;ctx.shadowColor='#ffd86b';
-          ctx.beginPath();ctx.moveTo(p.x-7,renderY-24);ctx.lineTo(p.x-8,renderY-33);ctx.lineTo(p.x-2,renderY-27);
-          ctx.lineTo(p.x,renderY-35);ctx.lineTo(p.x+3,renderY-27);ctx.lineTo(p.x+8,renderY-33);ctx.lineTo(p.x+7,renderY-24);
-          ctx.closePath();ctx.fill();ctx.shadowBlur=0;
-        }
-      }
-      ctx.restore();
-
-      ctx.save();ctx.font='700 11px system-ui,sans-serif';ctx.textAlign='center';
-      const label=p.name+(p.id===localPlayer.id?'  • YOU':'');
-      const w=ctx.measureText(label).width+18;
-      ctx.fillStyle='rgba(8,12,18,0.85)';roundedRectPath(p.x-w/2,p.y+27,w,18,9);ctx.fill();
-      ctx.strokeStyle=p.id===localPlayer.id?'rgba(0,255,204,0.8)':'rgba(255,255,255,0.15)';ctx.stroke();
-      ctx.fillStyle='#fff';ctx.fillText(label,p.x,p.y+40);ctx.restore();
-
-      if(p.bubble && Date.now()<p.bubble.timer){
-        ctx.save();const display=p.bubble.text.length>28?p.bubble.text.slice(0,28)+'…':p.bubble.text;
-        ctx.font='600 11px system-ui,sans-serif';const bw=Math.max(ctx.measureText(display).width+18,44);
-        const bx=p.x-bw/2,by=renderY-52;
-        ctx.fillStyle='rgba(255,255,255,0.96)';roundedRectPath(bx,by,bw,24,10);ctx.fill();
-        ctx.fillStyle='#0a0f18';ctx.fillText(display,p.x,by+16);ctx.restore();
-      }
-      if(p.emote&&Date.now()<p.emote.timer){
-        ctx.save();ctx.font='22px sans-serif';ctx.textAlign='center';
-        ctx.shadowBlur=12;ctx.shadowColor='#fff';
-        ctx.fillText(p.emote.symbol,p.x,renderY-40-Math.sin((Date.now()-p.emote.timer+3000)/180)*6);
+        ctx.fillStyle='rgba(8,12,18,0.82)';roundedRectPath(x-tw/2,y+25,tw,18,6);ctx.fill();
+        ctx.fillStyle='#aeb8c4';ctx.fillText(nameText,x,y+37);
         ctx.restore();
       }
     }
 
-    function draw() {
-      ctx.save();
-      ctx.scale(dpr, dpr);
-      ctx.clearRect(0,0,window.innerWidth,window.innerHeight);
-
-      const viewW = window.innerWidth;
-      const viewH = window.innerHeight;
-
-      const targetX = localPlayer.x - viewW / (2 * camera.zoom);
-      const targetY = localPlayer.y - viewH / (2 * camera.zoom);
-      const maxX = Math.max(0, WORLD_WIDTH - viewW / camera.zoom);
-      const maxY = Math.max(0, WORLD_HEIGHT - viewH / camera.zoom);
+    function drawAvatar(p) {
+      if (p.vehicle) return;
+      const isMe = p.id === localPlayer.id;
       
-      const clampedX = Math.max(0, Math.min(maxX, targetX));
-      const clampedY = Math.max(0, Math.min(maxY, targetY));
-
-      camera.x += (clampedX - camera.x) * 0.12;
-      camera.y += (clampedY - camera.y) * 0.12;
-
-      ctx.save();
-      if(cameraShake > 0.1) ctx.translate((Math.random()-.5)*cameraShake, (Math.random()-.5)*cameraShake);
+      const speedMag = (keys['ArrowUp']||keys['ArrowDown']||keys['ArrowLeft']||keys['ArrowRight']||keys['w']||keys['a']||keys['s']||keys['d']) ? 1 : 0;
+      const cycle = isMe && speedMag ? (animFrame*0.35) : (animFrame*0.1);
       
-      if(localPlayer.location === 'world'){
-        ctx.scale(camera.zoom, camera.zoom);
-        ctx.translate(-camera.x, -camera.y);
-        drawWorld();
-      } else {
-        drawHouseInterior();
+      let renderY = p.y;
+
+      // Aura Super Saiyajin DBZ
+      if (p.isSuperSaiyan) {
+        const pulse = 22 + Math.sin(animFrame * 0.2) * 8;
+        const g = ctx.createRadialGradient(p.x, renderY, pulse * 0.2, p.x, renderY, pulse * 2.5);
+        g.addColorStop(0, 'rgba(255, 216, 107, 0.7)');
+        g.addColorStop(1, 'rgba(255, 216, 107, 0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(p.x, renderY, pulse * 2.5, 0, Math.PI * 2); ctx.fill();
       }
 
-      drawAvatar(localPlayer);
-      for(let id in players) if(id!==localPlayer.id && players[id].location===localPlayer.location) drawAvatar(players[id]);
-      ctx.restore();
+      if (p.hasAura) {
+        const pulse = 16 + Math.sin(animFrame * 0.15) * 4;
+        const g = ctx.createRadialGradient(p.x, renderY, pulse*0.2, p.x, renderY, pulse);
+        g.addColorStop(0, 'rgba(0, 255, 204, 0.5)'); g.addColorStop(1, 'rgba(0, 255, 204, 0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, renderY, pulse, 0, Math.PI*2); ctx.fill();
+      }
 
-      const vg=ctx.createRadialGradient(viewW/2,viewH/2,Math.min(viewW,viewH)*.2,viewW/2,viewH/2,Math.max(viewW,viewH)*.75);
-      vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.35)');
-      ctx.fillStyle=vg; ctx.fillRect(0,0,viewW,viewH);
+      if (p.isMounted) {
+        const bob = Math.sin(animFrame*0.15)*3; renderY -= (10 + bob);
+        ctx.fillStyle = '#00ffcc'; ctx.shadowBlur = 10; ctx.shadowColor = '#00ffcc';
+        roundedRectPath(p.x - 14, p.y + 12, 28, 6, 3); ctx.fill(); ctx.shadowBlur = 0;
+      }
+
+      drawCharacterEntity(p.x, renderY, p.color, p.name, cycle, (p.isMoving||speedMag)?'walk':'none');
+
+      // Cabello Super Saiyajin DBZ
+      if (p.isSuperSaiyan) {
+        ctx.save();
+        ctx.fillStyle = '#ffea00';
+        ctx.shadowBlur = 15; ctx.shadowColor = '#ffea00';
+        ctx.beginPath();
+        let hy = renderY - 24;
+        ctx.moveTo(p.x - 8, hy + 5);
+        ctx.lineTo(p.x - 14, hy - 8);
+        ctx.lineTo(p.x - 4, hy - 4);
+        ctx.lineTo(p.x, hy - 16);
+        ctx.lineTo(p.x + 4, hy - 4);
+        ctx.lineTo(p.x + 14, hy - 8);
+        ctx.lineTo(p.x + 8, hy + 5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      if (p.equippedHat) {
+        ctx.save();
+        if (p.equippedHat === 'item_sunglasses') { ctx.font = '16px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('😎', p.x, renderY - 14); }
+        else if (p.equippedHat === 'item_crown') { ctx.font = '22px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('👑', p.x, renderY - 22); }
+        ctx.restore();
+      }
+
+      if (p.bubble && p.bubble.timer > Date.now()) {
+        ctx.save();
+        ctx.font = '700 11px system-ui,sans-serif'; ctx.textAlign = 'center';
+        let w = ctx.measureText(p.bubble.text).width + 16;
+        ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.shadowBlur = 15; ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        roundedRectPath(p.x - w/2, renderY - 50, w, 20, 8); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(p.x - 4, renderY - 30); ctx.lineTo(p.x, renderY - 22); ctx.lineTo(p.x + 4, renderY - 30); ctx.fill();
+        ctx.fillStyle = '#080c14'; ctx.shadowBlur = 0; ctx.fillText(p.bubble.text, p.x, renderY - 36);
+        ctx.restore();
+      }
+
+      if (p.emote && p.emote.timer > Date.now()) {
+        ctx.save();
+        ctx.font = '28px sans-serif'; ctx.textAlign = 'center';
+        let pop = Math.max(0, (p.emote.timer - Date.now()) / 3000);
+        ctx.globalAlpha = pop; ctx.fillText(p.emote.symbol, p.x, renderY - 45 - (1-pop)*20);
+        ctx.restore();
+      }
+    }
+
+    // Dibujar Rayos Kamehameha DBZ
+    function drawBeams() {
+      beams.forEach(b => {
+        ctx.save();
+        ctx.shadowBlur = 20; ctx.shadowColor = '#61d3ff';
+        let angle = Math.atan2(b.vy, b.vx);
+        ctx.translate(b.x, b.y);
+        ctx.rotate(angle);
+        
+        ctx.fillStyle = 'rgba(0, 179, 240, 0.8)';
+        ctx.beginPath(); ctx.ellipse(0, 0, 50, 15, 0, 0, Math.PI*2); ctx.fill();
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowBlur = 30; ctx.shadowColor = '#ffffff';
+        ctx.beginPath(); ctx.ellipse(0, 0, 45, 8, 0, 0, Math.PI*2); ctx.fill();
+        
+        ctx.restore();
+      });
+    }
+
+    function draw() {
+      ctx.fillStyle = '#080c14';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+      ctx.scale(dpr, dpr);
+
+      let targetZoom = localPlayer.location === 'world' ? 1.0 : 1.4;
+      camera.zoom += (targetZoom - camera.zoom) * 0.1;
+
+      let cx = localPlayer.x - (canvas.width / dpr) / (2 * camera.zoom);
+      let cy = localPlayer.y - (canvas.height / dpr) / (2 * camera.zoom);
+
+      if (localPlayer.location === 'world') {
+        cx = Math.max(0, Math.min(cx, WORLD_WIDTH - (canvas.width / dpr) / camera.zoom));
+        cy = Math.max(0, Math.min(cy, WORLD_HEIGHT - (canvas.height / dpr) / camera.zoom));
+      }
+
+      camera.x += (cx - camera.x) * 0.15;
+      camera.y += (cy - camera.y) * 0.15;
+
+      let dx = cameraShake * (Math.random() - 0.5);
+      let dy = cameraShake * (Math.random() - 0.5);
+
+      ctx.scale(camera.zoom, camera.zoom);
+      ctx.translate(-camera.x + dx, -camera.y + dy);
+
+      if (localPlayer.location === 'world') drawWorld(); else drawHouseInterior();
+
+      for (let id in players) {
+        if (players[id].location === localPlayer.location) drawAvatar(players[id]);
+      }
+      drawAvatar(localPlayer);
+      drawBeams();
+
+      if (localPlayer.location === 'world') {
+        const hg = ctx.createRadialGradient(localPlayer.x, localPlayer.y, 100, localPlayer.x, localPlayer.y, 400);
+        hg.addColorStop(0, 'rgba(0,0,0,0)'); hg.addColorStop(1, 'rgba(8,12,20,0.3)');
+        ctx.fillStyle = hg; ctx.fillRect(camera.x - dx, camera.y - dy, canvas.width/dpr/camera.zoom, canvas.height/dpr/camera.zoom);
+      }
+
       ctx.restore();
     }
 
-    function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
+    function gameLoop() {
+      update(); draw();
+      requestAnimationFrame(gameLoop);
+    }
   </script>
 </body>
 </html>
