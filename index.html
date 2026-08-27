@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neighborhood World - Mega City PRO (v4.1.0)</title>
+  <title>Neighborhood World - Mega City PRO (v4.1.1)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
@@ -35,7 +35,7 @@
     }
     
     #hud-controls {
-      position: absolute; top: 10px; right: 10px; z-index: 10; display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; max-width: 480px;
+      position: absolute; top: 10px; right: 10px; z-index: 10; display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; max-width: 520px;
     }
     #hud-controls button {
       background: rgba(0,0,0,0.85); color: #fff; border: 1px solid #fff;
@@ -94,8 +94,8 @@
 
   <div id="setup-modal">
     <div class="setup-box">
-      <h2 style="text-align:center;">MEGA CITY v4.1.0</h2>
-      <div style="font-size: 10px; text-align: center; color: #888;">MARTIN, GABY & FACU HOUSES + GARAGES</div>
+      <h2 style="text-align:center;">MEGA CITY v4.1.1</h2>
+      <div style="font-size: 10px; text-align: center; color: #888;">FULL FEATURE RESTORATION + FACU HOUSE & GARAGES</div>
       <input type="text" id="username-input" placeholder="Enter Username..." maxlength="12">
       <input type="text" id="world-id-input" placeholder="World ID (Default: main-city)">
       <select id="avatar-select">
@@ -117,7 +117,7 @@
 
   <div id="game-container">
     <div id="hud">
-      <div>BUILD: <span style="color:#0f0;">v4.1.0 MEGA</span></div>
+      <div>BUILD: <span style="color:#0f0;">v4.1.1 PRO</span></div>
       <div>ROOM: <span id="display-room-code">MAIN-CITY</span></div>
       <div>STATUS: <span id="status-tag" style="color:#0f0;">CONNECTING...</span></div>
       <div>LOCATION: <span id="location-tag">HOME</span></div>
@@ -131,6 +131,7 @@
       <button onclick="sendEmote('😂')">😂</button>
       <button onclick="toggleShop()">SHOP (B)</button>
       <button onclick="toggleInventory()">BACKPACK (I)</button>
+      <button onclick="toggleEditor()">EDITOR (M)</button>
       <button onclick="resetPosition()">RESET (SAFE)</button>
     </div>
 
@@ -146,6 +147,15 @@
       <h3>BACKPACK</h3>
       <div id="inventory-item-list"></div>
       <button onclick="toggleInventory()" style="width:100%; margin-top:10px; background:#000; color:#fff; border:1px solid #fff; padding:6px; cursor:pointer;">CLOSE</button>
+    </div>
+
+    <div id="editor-modal" class="game-modal">
+      <h3>CITY EDITOR & SPAWN</h3>
+      <div style="font-size:11px; margin-bottom:10px; color:#aaa;">Spawn objects in the city world:</div>
+      <div class="item-row"><button onclick="spawnEditorItem('bench')" style="width:100%;">Spawn Park Bench 🪑</button></div>
+      <div class="item-row"><button onclick="spawnEditorItem('lamp')" style="width:100%;">Spawn Street Lamp 💡</button></div>
+      <div class="item-row"><button onclick="spawnEditorItem('tree')" style="width:100%;">Spawn Oak Tree 🌳</button></div>
+      <button onclick="toggleEditor()" style="width:100%; margin-top:10px; background:#000; color:#fff; border:1px solid #fff; padding:6px; cursor:pointer;">CLOSE</button>
     </div>
 
     <div id="chat-container">
@@ -173,7 +183,7 @@
   </div>
 
   <script>
-    const GAME_VERSION = "4.1.0";
+    const GAME_VERSION = "4.1.1";
     const WORLD_WIDTH = 4200;
     const WORLD_HEIGHT = 2800;
     const PLAYER_TIMEOUT_MS = 10000;
@@ -235,7 +245,7 @@
       { id: 'house_bar', name: "The Neon Pub 🍻", x: 2350, y: 180, w: 200, h: 140, doorX: 2450, doorY: 320, exitX: 2450, exitY: 370, furniture: '🍸 Jukebox & Bar', hasGarage: true, garageX: 2560, garageY: 180, garageW: 100, garageH: 140 },
       { id: 'house_shop', name: "Mini Mart 🛒", x: 2750, y: 180, w: 200, h: 140, doorX: 2850, doorY: 320, exitX: 2850, exitY: 370, furniture: '📦 Snack Shelves', hasGarage: true, garageX: 2960, garageY: 180, garageW: 100, garageH: 140 },
 
-      // --- Manzana 3: Ocio y Recreación (3 casas/locales) ---
+      // --- Manzana 3: Ocio y Recreación (2 casas principales para completar el bloque comercial superior) ---
       { id: 'house_arcade', name: "Retro Arcade 🕹️", x: 3250, y: 180, w: 220, h: 140, doorX: 3360, doorY: 320, exitX: 3360, exitY: 370, furniture: '👾 Pinball Machines', hasGarage: true, garageX: 3480, garageY: 180, garageW: 100, garageH: 140 },
       { id: 'house_pizzeria', name: "Pizza Palace 🍕", x: 3650, y: 180, w: 220, h: 140, doorX: 3760, doorY: 320, exitX: 3760, exitY: 370, furniture: '🍕 Oven & Tables', hasGarage: true, garageX: 3880, garageY: 180, garageW: 100, garageH: 140 },
 
@@ -420,6 +430,26 @@
       });
     }
 
+    function toggleEditor() {
+      const modal = document.getElementById('editor-modal');
+      modal.style.display = (modal.style.display === 'block') ? 'none' : 'block';
+    }
+
+    function spawnEditorItem(type) {
+      if (type === 'tree') {
+        sceneryTrees.push({ x: localPlayer.x, y: localPlayer.y, r: 48 });
+        showNotification("Spawned a Tree 🌳", 'success');
+      } else if (type === 'lamp') {
+        streetLights.push({ x: localPlayer.x, y: localPlayer.y });
+        showNotification("Spawned Street Lamp 💡", 'success');
+      } else if (type === 'bench') {
+        outdoorSolids.push({ x: localPlayer.x - 15, y: localPlayer.y - 10, w: 30, h: 20 });
+        showNotification("Spawned Park Bench 🪑", 'success');
+      }
+      toggleEditor();
+      broadcast({ type: 'move', player: localPlayer, vehicles });
+    }
+
     function toggleEquipHat(hatId) {
       if (localPlayer.equippedHat === hatId) {
         localPlayer.equippedHat = null;
@@ -567,7 +597,7 @@
     }
 
     function initMultiplayerGlobal() {
-      const hostRoomId = `nh-${activeWorldRoom}-host-v410`;
+      const hostRoomId = `nh-${activeWorldRoom}-host-v411`;
       setTimeout(() => {
         peer = new Peer(hostRoomId);
         peer.on('open', () => {
@@ -677,6 +707,7 @@
       if (e.key.toLowerCase() === 'e') triggerInteraction();
       if (e.key.toLowerCase() === 'b') toggleShop();
       if (e.key.toLowerCase() === 'i') toggleInventory();
+      if (e.key.toLowerCase() === 'm') toggleEditor();
     });
     window.addEventListener('keyup', e => {
       if (document.activeElement === document.getElementById('chat-input')) return;
@@ -888,11 +919,9 @@
 
       // Dibujar Casas y sus Garages Independientes al lado
       houses.forEach(h => {
-        // Sombra de la casa
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(h.x + 10, h.y + 10, h.w, h.h);
 
-        // Estilo particular para Facu (Color azulado/moderno distintivo)
         let houseColor = '#3e2723';
         if (h.id === 'house_martin') houseColor = '#1b4f72';
         if (h.id === 'house_gaby') houseColor = '#7d3c98';
@@ -901,13 +930,11 @@
         if (h.id === 'house_shop') houseColor = '#006064';
         if (h.id === 'house_hospital') houseColor = '#b71c1c';
 
-        // Cuerpo de la casa
         ctx.fillStyle = houseColor;
         ctx.fillRect(h.x, h.y, h.w, h.h);
         ctx.strokeStyle = '#f5f5f5'; ctx.lineWidth = 3;
         ctx.strokeRect(h.x, h.y, h.w, h.h);
 
-        // Techo / Marquesina superior
         ctx.fillStyle = '#212121';
         ctx.fillRect(h.x - 6, h.y - 20, h.w + 12, 24);
         ctx.strokeStyle = '#fff'; ctx.strokeRect(h.x - 6, h.y - 20, h.w + 12, 24);
@@ -916,7 +943,6 @@
         ctx.fillText(h.name, h.x + h.w / 2, h.y - 33);
         ctx.font = '8px monospace'; ctx.fillText(h.furniture, h.x + h.w / 2, h.y + 30);
 
-        // Ventanas
         ctx.fillStyle = '#81d4fa';
         ctx.fillRect(h.x + 15, h.y + 45, 20, 30);
         ctx.fillRect(h.x + h.w - 35, h.y + 45, 20, 30);
@@ -924,18 +950,15 @@
         ctx.strokeRect(h.x + 15, h.y + 45, 20, 30);
         ctx.strokeRect(h.x + h.w - 35, h.y + 45, 20, 30);
 
-        // Puerta principal
         ctx.fillStyle = '#ffeb3b'; ctx.fillRect(h.doorX - 16, h.doorY - 6, 32, 12);
         ctx.fillStyle = '#fff'; ctx.font = '8px monospace'; ctx.fillText("🚪 ENTRANCE", h.doorX, h.doorY - 12);
 
-        // Garage Integrado Independiente al Lado
         if (h.hasGarage) {
           ctx.fillStyle = '#2c3e50';
           ctx.fillRect(h.garageX, h.garageY, h.garageW, h.garageH);
           ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
           ctx.strokeRect(h.garageX, h.garageY, h.garageW, h.garageH);
 
-          // Cortina del garage
           ctx.fillStyle = '#566573';
           ctx.fillRect(h.garageX + 10, h.garageY + 20, h.garageW - 20, h.garageH - 30);
           ctx.strokeStyle = '#111';
