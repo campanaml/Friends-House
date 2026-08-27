@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neighborhood World - Mega City PRO (v4.1.2)</title>
+  <title>Neighborhood World - Mega City PRO (v4.1.3)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
@@ -109,8 +109,8 @@
 
   <div id="setup-modal">
     <div class="setup-box">
-      <h2 style="text-align:center;">MEGA CITY v4.1.2</h2>
-      <div style="font-size: 10px; text-align: center; color: #00ffcc;">ACTIVE TRAFFIC & CROSSWALKS</div>
+      <h2 style="text-align:center;">MEGA CITY v4.1.3</h2>
+      <div style="font-size: 10px; text-align: center; color: #00ffcc;">ALIGNED BUILDINGS & LAYOUT</div>
       
       <label for="username-input">Citizen Name</label>
       <input type="text" id="username-input" placeholder="Enter Username..." maxlength="12">
@@ -140,7 +140,7 @@
 
   <div id="game-container">
     <div id="hud">
-      <div>BUILD: <span style="color:#0f0;">v4.1.2 MEGA</span></div>
+      <div>BUILD: <span style="color:#0f0;">v4.1.3 MEGA</span></div>
       <div>ROOM: <span id="display-room-code">MAIN-CITY</span></div>
       <div>STATUS: <span id="status-tag" style="color:#0f0;">CONNECTING...</span></div>
       <div>LOCATION: <span id="location-tag">HOME</span></div>
@@ -196,7 +196,7 @@
   </div>
 
   <script>
-    const GAME_VERSION = "4.1.2";
+    const GAME_VERSION = "4.1.3";
     const WORLD_WIDTH = 4200;
     const WORLD_HEIGHT = 2800;
     const PLAYER_TIMEOUT_MS = 10000;
@@ -275,12 +275,12 @@
       dir: 'down'
     };
 
-    // --- CASA DE GABY Y POLICÍA INTERCAMBIADAS ---
+    // --- CASAS ALINEADAS PERFECTAMENTE (y: 180, alto: 140 para todas las superiores) ---
     let houses = [
       { id: 'house_martin', name: "Martin's House", x: 200, y: 180, w: 220, h: 140, doorX: 310, doorY: 320, exitX: 310, exitY: 370, furniture: '📺 Smart TV & Sofa' },
-      { id: 'house_police', name: "City Police 🚨", x: 480, y: 180, w: 260, h: 140, doorX: 590, doorY: 320, exitX: 590, exitY: 370, furniture: '💻 Surveillance Hub' },
-      { id: 'house_gaby', name: "Gaby's House", x: 1050, y: 180, w: 220, h: 140, doorX: 1180, doorY: 320, exitX: 1180, exitY: 370, furniture: '🌺 Indoor Garden' },
-      { id: 'house_hospital', name: "General Hospital 🏥", x: 1400, y: 180, w: 260, h: 140, doorX: 1530, doorY: 320, exitX: 1530, exitY: 370, furniture: '💊 Medical Beds' },
+      { id: 'house_police', name: "City Police 🚨", x: 480, y: 180, w: 260, h: 140, doorX: 610, doorY: 320, exitX: 610, exitY: 370, furniture: '💻 Surveillance Hub' },
+      { id: 'house_gaby', name: "Gaby's House", x: 1050, y: 180, w: 220, h: 140, doorX: 1160, doorY: 320, exitX: 1160, exitY: 370, furniture: '🌺 Indoor Garden' },
+      { id: 'house_hospital', name: "General Hospital 🏥", x: 1390, y: 180, w: 260, h: 140, doorX: 1520, doorY: 320, exitX: 1520, exitY: 370, furniture: '💊 Medical Beds' },
       { id: 'house_bar', name: "The Neon Pub 🍻", x: 2100, y: 180, w: 260, h: 140, doorX: 2230, doorY: 320, exitX: 2230, exitY: 370, furniture: '🍸 Jukebox & Bar' },
       { id: 'house_shop', name: "Mini Mart 🛒", x: 2450, y: 180, w: 260, h: 140, doorX: 2580, doorY: 320, exitX: 2580, exitY: 370, furniture: '📦 Snack Shelves' },
       { id: 'house_arcade', name: "Retro Arcade 🕹️", x: 3100, y: 180, w: 260, h: 140, doorX: 3230, doorY: 320, exitX: 3230, exitY: 370, furniture: '👾 Pinball Machines' },
