@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neighborhood World - Multiplayer Game (v2.0.0)</title>
+  <title>Neighborhood World - Multiplayer City (v3.0.0)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
@@ -15,8 +15,9 @@
       align-items: center; justify-content: center; z-index: 100;
     }
     .setup-box {
-      border: 2px solid #fff; padding: 20px; background: #111;
-      display: flex; flex-direction: column; gap: 15px; width: 320px;
+      border: 2px solid #fff; padding: 25px; background: #111;
+      display: flex; flex-direction: column; gap: 15px; width: 340px;
+      box-shadow: 0 0 20px rgba(255,255,255,0.2);
     }
     .setup-box input, .setup-box button, .setup-box select {
       background: #000; color: #fff; border: 1px solid #fff; padding: 10px;
@@ -28,16 +29,16 @@
     canvas { display: block; background: #1b4d2e; width: 100vw; height: 100vh; }
 
     #hud {
-      position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8);
+      position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.85);
       border: 1px solid #fff; padding: 10px; z-index: 10; font-size: 12px;
       display: flex; flex-direction: column; gap: 4px; pointer-events: none;
     }
     
     #hud-controls {
-      position: absolute; top: 10px; right: 10px; z-index: 10; display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; max-width: 450px;
+      position: absolute; top: 10px; right: 10px; z-index: 10; display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; max-width: 480px;
     }
     #hud-controls button {
-      background: rgba(0,0,0,0.8); color: #fff; border: 1px solid #fff;
+      background: rgba(0,0,0,0.85); color: #fff; border: 1px solid #fff;
       padding: 6px 10px; font-family: monospace; cursor: pointer;
     }
     #hud-controls button:hover { background: #fff; color: #000; }
@@ -46,6 +47,7 @@
       display: none; position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -50%); background: #111; border: 2px solid #fff;
       padding: 15px; width: 340px; z-index: 20; color: #fff;
+      box-shadow: 0 0 15px rgba(0,0,0,0.8);
     }
     .game-modal h3 { border-bottom: 1px solid #fff; padding-bottom: 5px; margin-bottom: 10px; }
     .item-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 11px; }
@@ -53,7 +55,7 @@
     .item-row button:hover { background: #fff; color: #000; }
 
     #chat-container {
-      position: absolute; bottom: 10px; left: 10px; width: 300px;
+      position: absolute; bottom: 10px; left: 10px; width: 320px;
       background: rgba(0,0,0,0.85); border: 1px solid #fff; z-index: 10;
     }
     #chat-container.minimized #chat-logs { display: none; }
@@ -61,7 +63,7 @@
       background: #222; padding: 5px 10px; cursor: pointer;
       display: flex; justify-content: space-between; border-bottom: 1px solid #fff;
     }
-    #chat-logs { height: 120px; overflow-y: auto; padding: 8px; font-size: 11px; }
+    #chat-logs { height: 130px; overflow-y: auto; padding: 8px; font-size: 11px; display: flex; flex-direction: column; gap: 4px; }
     #chat-input-box { border-top: 1px solid #fff; display: flex; }
     #chat-input { background: #000; color: #fff; border: none; padding: 8px; width: 100%; font-family: monospace; }
 
@@ -70,8 +72,8 @@
       z-index: 30; pointer-events: none; display: flex; flex-direction: column; gap: 5px;
     }
     .toast {
-      background: rgba(0,0,0,0.9); border: 1px solid #fff; padding: 6px 12px;
-      font-size: 11px; text-align: center;
+      background: rgba(0,0,0,0.9); border: 1px solid #fff; padding: 6px 14px;
+      font-size: 11px; text-align: center; box-shadow: 0 0 10px rgba(255,255,255,0.2);
     }
     .toast.success { border-color: #0f0; color: #0f0; }
     .toast.error { border-color: #f00; color: #f00; }
@@ -81,7 +83,7 @@
     }
     .dpad-row { display: flex; justify-content: center; }
     .dpad-btn {
-      width: 44px; height: 44px; background: rgba(255,255,255,0.2);
+      width: 48px; height: 48px; background: rgba(255,255,255,0.2);
       border: 1px solid #fff; color: #fff; font-size: 18px; display: flex;
       align-items: center; justify-content: center; user-select: none;
     }
@@ -92,8 +94,8 @@
 
   <div id="setup-modal">
     <div class="setup-box">
-      <h2 style="text-align:center;">ENTER CITY v2.0</h2>
-      <div style="font-size: 10px; text-align: center; color: #888;">BUILD: v2.0.0</div>
+      <h2 style="text-align:center;">METROPOLIS v3.0</h2>
+      <div style="font-size: 10px; text-align: center; color: #888;">ULTRA-GRAPHICS & ORGANIZED BLOCKS</div>
       <input type="text" id="username-input" placeholder="Enter Username..." maxlength="12">
       <input type="text" id="world-id-input" placeholder="World ID (Default: main-city)">
       <select id="avatar-select">
@@ -106,14 +108,15 @@
         <option value="#00ffff">Cyan</option>
         <option value="#ff00ff">Magenta</option>
         <option value="#ffff00">Yellow</option>
+        <option value="#ff5722">Orange</option>
       </select>
-      <button onclick="enterHouse()">START EXPLORING</button>
+      <button onclick="enterHouse()">ENTER WORLD</button>
     </div>
   </div>
 
   <div id="game-container">
     <div id="hud">
-      <div>BUILD: <span style="color:#0f0;">v2.0.0</span></div>
+      <div>BUILD: <span style="color:#0f0;">v3.0.0</span></div>
       <div>ROOM: <span id="display-room-code">MAIN-CITY</span></div>
       <div>STATUS: <span id="status-tag" style="color:#0f0;">CONNECTING...</span></div>
       <div>LOCATION: <span id="location-tag">HOME</span></div>
@@ -133,15 +136,15 @@
     <div id="notification-zone"></div>
 
     <div id="shop-modal" class="game-modal">
-      <h3>SHOP</h3>
+      <h3>CITY SHOP</h3>
       <div id="shop-item-list"></div>
-      <button onclick="toggleShop()" style="width:100%; margin-top:10px; background:#000; color:#fff; border:1px solid #fff; padding:4px; cursor:pointer;">CLOSE</button>
+      <button onclick="toggleShop()" style="width:100%; margin-top:10px; background:#000; color:#fff; border:1px solid #fff; padding:6px; cursor:pointer;">CLOSE</button>
     </div>
 
     <div id="inventory-modal" class="game-modal">
       <h3>BACKPACK</h3>
       <div id="inventory-item-list"></div>
-      <button onclick="toggleInventory()" style="width:100%; margin-top:10px; background:#000; color:#fff; border:1px solid #fff; padding:4px; cursor:pointer;">CLOSE</button>
+      <button onclick="toggleInventory()" style="width:100%; margin-top:10px; background:#000; color:#fff; border:1px solid #fff; padding:6px; cursor:pointer;">CLOSE</button>
     </div>
 
     <div id="chat-container">
@@ -169,9 +172,9 @@
   </div>
 
   <script>
-    const GAME_VERSION = "2.0.0";
-    const WORLD_WIDTH = 3600;
-    const WORLD_HEIGHT = 2400;
+    const GAME_VERSION = "3.0.0";
+    const WORLD_WIDTH = 4200;
+    const WORLD_HEIGHT = 2800;
     const PLAYER_TIMEOUT_MS = 10000;
 
     const canvas = document.getElementById('gameCanvas');
@@ -202,8 +205,8 @@
       name: 'Player',
       avatar: 'martin',
       color: '#ffffff',
-      x: 400,
-      y: 450,
+      x: 350,
+      y: 400,
       radius: 12,
       speed: 4,
       location: 'house_martin',
@@ -217,24 +220,28 @@
       dir: 'down'
     };
 
-    // Mapa expandido con Casas, Bar y Zonas recreativas
+    // Casas alineadas perfectamente en manzanas residenciales y comerciales
     let houses = [
-      { id: 'house_martin', name: "Martin's House", x: 200, y: 200, w: 280, h: 180, doorX: 340, doorY: 380, exitX: 340, exitY: 410, furniture: '📺 TV Room' },
-      { id: 'house_gaby', name: "Gaby's House", x: 1000, y: 200, w: 280, h: 180, doorX: 1140, doorY: 380, exitX: 1140, exitY: 410, furniture: '🌺 Garden Couch' },
-      { id: 'house_bar', name: "The Neon Pub", x: 1800, y: 200, w: 320, h: 180, doorX: 1960, doorY: 380, exitX: 1960, exitY: 410, furniture: '🍻 Bar Counter & Jukebox' },
-      { id: 'house_extra1', name: "Suburban Home A", x: 2600, y: 200, w: 280, h: 180, doorX: 2740, doorY: 380, exitX: 2740, exitY: 410, furniture: '🛋️ Cozy Living' },
-      { id: 'house_extra2', name: "Suburban Home B", x: 2600, y: 1600, w: 280, h: 180, doorX: 2740, doorY: 1780, exitX: 2740, exitY: 1810, furniture: '🛏️ Master Bedroom' }
+      // Manzana Norte-Oeste (Residencial)
+      { id: 'house_martin', name: "Martin's House", x: 200, y: 180, w: 240, h: 160, doorX: 320, doorY: 340, exitX: 320, exitY: 370, furniture: '📺 Smart TV & Sofa' },
+      { id: 'house_gaby', name: "Gaby's House", x: 500, y: 180, w: 240, h: 160, doorX: 620, doorY: 340, exitX: 620, exitY: 370, furniture: '🌺 Indoor Garden' },
+      
+      // Manzana Norte-Este (Comercial y Ocio)
+      { id: 'house_bar', name: "The Neon Pub 🍻", x: 1050, y: 180, w: 280, h: 160, doorX: 1190, doorY: 340, exitX: 1190, exitY: 370, furniture: '🍸 Jukebox & Bar' },
+      { id: 'house_shop', name: "Mini Mart 🛒", x: 1400, y: 180, w: 280, h: 160, doorX: 1540, doorY: 340, exitX: 1540, exitY: 370, furniture: '📦 Snack Shelves' },
+
+      // Manzana Sur-Oeste (Suburbio)
+      { id: 'house_sub1', name: "Suburban Villa A", x: 200, y: 1600, w: 240, h: 160, doorX: 320, doorY: 1760, exitX: 320, exitY: 1790, furniture: '🛏️ Master Suite' },
+      { id: 'house_sub2', name: "Suburban Villa B", x: 500, y: 1600, w: 240, h: 160, doorX: 620, doorY: 1760, exitX: 620, exitY: 1790, furniture: '💻 Office & PC' },
+
+      // Manzana Sur-Este
+      { id: 'house_sub3', name: "Modern Loft A", x: 1050, y: 1600, w: 280, h: 160, doorX: 1190, doorY: 1760, exitX: 1190, exitY: 1790, furniture: '🎨 Art Studio' }
     ];
 
-    let outdoorSolids = [
-      { x: 200, y: 200, w: 280, h: 180 },
-      { x: 1000, y: 200, w: 280, h: 180 },
-      { x: 1800, y: 200, w: 320, h: 180 },
-      { x: 2600, y: 200, w: 280, h: 180 },
-      { x: 2600, y: 1600, w: 280, h: 180 },
-      // Obstáculos de la plaza central
-      { x: 1150, y: 1150, w: 300, h: 200 }
-    ];
+    let outdoorSolids = houses.map(h => ({ x: h.x, y: h.y, w: h.w, h: h.h })).concat([
+      // Obstáculos sólidos del parque central y complejo deportivo
+      { x: 1900, y: 900, w: 400, h: 300 }
+    ]);
 
     let houseSolids = [
       { x: 100, y: 100, w: 600, h: 10 },
@@ -246,35 +253,36 @@
     ];
 
     let sceneryTrees = [
-      { x: 100, y: 100, r: 25 }, { x: 650, y: 120, r: 30 }, { x: 900, y: 150, r: 22 },
-      { x: 1500, y: 100, r: 28 }, { x: 2400, y: 100, r: 35 }, { x: 3200, y: 150, r: 28 },
-      { x: 150, y: 900, r: 25 }, { x: 650, y: 950, r: 30 }, { x: 1400, y: 900, r: 24 },
-      { x: 300, y: 2100, r: 28 }, { x: 1200, y: 2200, r: 30 }, { x: 2200, y: 2150, r: 26 }, { x: 3200, y: 2100, r: 30 }
+      { x: 120, y: 120, r: 24 }, { x: 800, y: 120, r: 26 }, { x: 950, y: 120, r: 24 },
+      { x: 1750, y: 120, r: 28 }, { x: 2200, y: 120, r: 30 }, { x: 3000, y: 150, r: 28 },
+      { x: 120, y: 900, r: 25 }, { x: 800, y: 950, r: 25 }, { x: 1700, y: 900, r: 24 },
+      { x: 200, y: 2100, r: 28 }, { x: 1100, y: 2200, r: 30 }, { x: 2100, y: 2150, r: 26 }
     ];
 
     let streetLights = [
-      { x: 760, y: 460 }, { x: 840, y: 460 },
-      { x: 1660, y: 460 }, { x: 1740, y: 460 },
-      { x: 760, y: 1460 }, { x: 840, y: 1460 }
+      { x: 850, y: 420 }, { x: 950, y: 420 },
+      { x: 1850, y: 420 }, { x: 1950, y: 420 },
+      { x: 850, y: 1520 }, { x: 950, y: 1520 },
+      { x: 2850, y: 420 }, { x: 2850, y: 1520 }
     ];
 
     let clouds = [
-      { x: 200, y: 80, speed: 0.2 }, { x: 1200, y: 120, speed: 0.15 }, { x: 2500, y: 90, speed: 0.25 }
+      { x: 300, y: 70, speed: 0.18 }, { x: 1400, y: 110, speed: 0.12 }, { x: 2800, y: 80, speed: 0.22 }
     ];
 
     let vehicles = [
-      { id: 'v_car1', type: 'car', icon: '🏎️', x: 600, y: 530, speed: 7, driver: null, location: 'world' },
-      { id: 'v_car2', type: 'car', icon: '🚓', x: 2200, y: 1530, speed: 7, driver: null, location: 'world' },
-      { id: 'v_plane1', type: 'plane', icon: '🛩️', x: 1600, y: 2050, speed: 10, driver: null, location: 'world' }
+      { id: 'v_car1', type: 'car', icon: '🏎️', x: 600, y: 470, speed: 7, driver: null, location: 'world' },
+      { id: 'v_car2', type: 'car', icon: '🚓', x: 2200, y: 1470, speed: 7, driver: null, location: 'world' },
+      { id: 'v_plane1', type: 'plane', icon: '🛩️', x: 1800, y: 2350, speed: 10, driver: null, location: 'world' }
     ];
 
     let mapCoins = [
-      { id: 1, x: 500, y: 600, active: true },
-      { id: 2, x: 1300, y: 800, active: true },
-      { id: 3, x: 2100, y: 500, active: true },
-      { id: 4, x: 800, y: 1800, active: true },
-      { id: 5, x: 2800, y: 1400, active: true },
-      { id: 6, x: 1600, y: 1200, active: true }
+      { id: 1, x: 500, y: 550, active: true },
+      { id: 2, x: 1500, y: 800, active: true },
+      { id: 3, x: 2400, y: 450, active: true },
+      { id: 4, x: 900, y: 1900, active: true },
+      { id: 5, x: 3100, y: 1400, active: true },
+      { id: 6, x: 1800, y: 1300, active: true }
     ];
 
     let shopItems = [
@@ -424,7 +432,7 @@
         }, 8000);
       } else if (item.id === 'item_teleport') {
         localPlayer.location = `house_${localPlayer.avatar}`;
-        localPlayer.x = 400; localPlayer.y = 450;
+        localPlayer.x = 350; localPlayer.y = 400;
         let homeObj = houses.find(h => h.id === localPlayer.location);
         document.getElementById('location-tag').innerText = homeObj ? homeObj.name.toUpperCase() : "HOME";
         showNotification("Teleported Home!", 'success');
@@ -459,7 +467,7 @@
       }
       localPlayer.isMounted = false;
       localPlayer.location = `house_${localPlayer.avatar}`;
-      localPlayer.x = 400; localPlayer.y = 450;
+      localPlayer.x = 350; localPlayer.y = 400;
       let homeObj = houses.find(h => h.id === localPlayer.location);
       document.getElementById('location-tag').innerText = homeObj ? homeObj.name.toUpperCase() : "HOME";
       broadcast({ type: 'move', player: localPlayer, vehicles });
@@ -528,12 +536,12 @@
     }
 
     function initMultiplayerGlobal() {
-      const hostRoomId = `nh-${activeWorldRoom}-host-v200`;
+      const hostRoomId = `nh-${activeWorldRoom}-host-v300`;
       setTimeout(() => {
         peer = new Peer(hostRoomId);
         peer.on('open', () => {
           isHost = true;
-          document.getElementById('status-tag').innerText = "HOSTING CITY";
+          document.getElementById('status-tag').innerText = "HOSTING METROPOLIS";
         });
         peer.on('error', (err) => {
           if (err.type === 'unavailable-id') {
@@ -680,15 +688,15 @@
           }
         });
         houses.forEach(h => {
-          if (Math.hypot(localPlayer.x - h.doorX, localPlayer.y - h.doorY) < 40) {
-            localPlayer.location = h.id; localPlayer.x = 400; localPlayer.y = 450;
+          if (Math.hypot(localPlayer.x - h.doorX, localPlayer.y - h.doorY) < 45) {
+            localPlayer.location = h.id; localPlayer.x = 350; localPlayer.y = 400;
             document.getElementById('location-tag').innerText = h.name.toUpperCase();
           }
         });
       } else {
-        if (Math.hypot(localPlayer.x - 400, localPlayer.y - 480) < 50) {
+        if (Math.hypot(localPlayer.x - 350, localPlayer.y - 480) < 50) {
           let h = houses.find(item => item.id === localPlayer.location);
-          localPlayer.location = 'world'; localPlayer.x = h ? h.exitX : 300; localPlayer.y = h ? h.exitY : 410;
+          localPlayer.location = 'world'; localPlayer.x = h ? h.exitX : 300; localPlayer.y = h ? h.exitY : 370;
           document.getElementById('location-tag').innerText = "WORLD";
         }
       }
@@ -770,155 +778,180 @@
     }
 
     function drawWorld() {
-      // Calles en retícula expandida
-      ctx.fillStyle = '#2c2c2c';
-      ctx.fillRect(0, 440, WORLD_WIDTH, 120);
-      ctx.fillRect(0, 1440, WORLD_WIDTH, 120);
-      ctx.fillRect(740, 0, 120, WORLD_HEIGHT);
-      ctx.fillRect(1740, 0, 120, WORLD_HEIGHT);
-      ctx.fillRect(2740, 0, 120, WORLD_HEIGHT);
+      // Bloques de manzanas / Veredas (Piso base urbanizado)
+      ctx.fillStyle = '#222';
+      ctx.fillRect(0, 400, WORLD_WIDTH, 140);
+      ctx.fillRect(0, 1500, WORLD_WIDTH, 140);
+      ctx.fillRect(800, 0, 140, WORLD_HEIGHT);
+      ctx.fillRect(1800, 0, 140, WORLD_HEIGHT);
+      ctx.fillRect(2800, 0, 140, WORLD_HEIGHT);
 
-      // Líneas de carril
+      // Líneas viales de asfalto y pavimento con alta precisión
+      ctx.fillStyle = '#1c1c1c';
+      // Cruces y calles principales
+      ctx.fillRect(0, 420, WORLD_WIDTH, 100);
+      ctx.fillRect(0, 1520, WORLD_WIDTH, 100);
+      ctx.fillRect(820, 0, 100, WORLD_HEIGHT);
+      ctx.fillRect(1820, 0, 100, WORLD_HEIGHT);
+      ctx.fillRect(2820, 0, 100, WORLD_HEIGHT);
+
+      // Líneas divisorias amarillas
       ctx.strokeStyle = '#f1c40f';
       ctx.lineWidth = 4;
-      ctx.setLineDash([20, 15]);
-      ctx.beginPath(); ctx.moveTo(0, 500); ctx.lineTo(WORLD_WIDTH, 500); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, 1500); ctx.lineTo(WORLD_WIDTH, 1500); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(800, 0); ctx.lineTo(800, WORLD_HEIGHT); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(1800, 0); ctx.lineTo(1800, WORLD_HEIGHT); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(2800, 0); ctx.lineTo(2800, WORLD_HEIGHT); ctx.stroke();
+      ctx.setLineDash([25, 20]);
+      ctx.beginPath(); ctx.moveTo(0, 470); ctx.lineTo(WORLD_WIDTH, 470); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, 1570); ctx.lineTo(WORLD_WIDTH, 1570); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(870, 0); ctx.lineTo(870, WORLD_HEIGHT); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(1870, 0); ctx.lineTo(1870, WORLD_HEIGHT); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(2870, 0); ctx.lineTo(2870, WORLD_HEIGHT); ctx.stroke();
       ctx.setLineDash([]);
 
-      // --- PLAZA CENTRAL ---
-      ctx.fillStyle = '#27ae60'; // Césped brillante de la plaza
-      ctx.fillRect(950, 950, 700, 500);
-      ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 6; ctx.strokeRect(950, 950, 700, 500);
-      // Fuente central en la plaza
-      ctx.fillStyle = '#2980b9'; ctx.beginPath(); ctx.arc(1300, 1200, 60, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
-      ctx.fillStyle = '#3498db'; ctx.beginPath(); ctx.arc(1300, 1200, 30, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center'; ctx.fillText("CENTRAL PARK & FOUNTAIN", 1300, 1110);
+      // --- PLAZA CENTRAL / PARQUE URBANIZADO ---
+      ctx.fillStyle = '#27ae60'; 
+      ctx.fillRect(1000, 950, 750, 500);
+      ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 6; ctx.strokeRect(1000, 950, 750, 500);
+      
+      // Caminos internos de la plaza
+      ctx.fillStyle = '#7f8c8d';
+      ctx.fillRect(1335, 950, 80, 500);
+      ctx.fillRect(1000, 1160, 750, 80);
+
+      // Fuente central monumental
+      ctx.fillStyle = '#2980b9'; ctx.beginPath(); ctx.arc(1375, 1200, 65, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.stroke();
+      ctx.fillStyle = '#3498db'; ctx.beginPath(); ctx.arc(1375, 1200, 35, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center'; ctx.fillText("CENTRAL PLAZA & FOUNTAIN", 1375, 1105);
 
       // --- CANCHA DE FÚTBOL ---
-      ctx.fillStyle = '#1e8449'; ctx.fillRect(2000, 900, 600, 350);
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(2000, 900, 600, 350);
-      // Mitad de cancha y círculo central
-      ctx.beginPath(); ctx.moveTo(2300, 900); ctx.lineTo(2300, 1250); ctx.stroke();
-      ctx.beginPath(); ctx.arc(2300, 1075, 50, 0, Math.PI * 2); ctx.stroke();
-      // Arcos
-      ctx.strokeRect(2000, 1000, 30, 150);
-      ctx.strokeRect(2570, 1000, 30, 150);
-      ctx.fillStyle = '#fff'; ctx.fillText("SOCCER FIELD ⚽", 2300, 880);
+      ctx.fillStyle = '#1e8449'; ctx.fillRect(2100, 900, 650, 360);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(2100, 900, 650, 360);
+      ctx.beginPath(); ctx.moveTo(2425, 900); ctx.lineTo(2425, 1260); ctx.stroke();
+      ctx.beginPath(); ctx.arc(2425, 1080, 55, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeRect(2100, 1005, 35, 150);
+      ctx.strokeRect(2715, 1005, 35, 150);
+      ctx.fillStyle = '#fff'; ctx.fillText("PROFESSIONAL SOCCER FIELD ⚽", 2425, 880);
 
       // --- CANCHA DE TENIS ---
-      ctx.fillStyle = '#d35400'; ctx.fillRect(2000, 1600, 500, 300);
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(2000, 1600, 500, 300);
-      // Líneas de tenis
-      ctx.strokeRect(2050, 1650, 400, 200);
-      ctx.beginPath(); ctx.moveTo(2250, 1600); ctx.lineTo(2250, 1900); ctx.stroke(); // Red
-      ctx.fillStyle = '#fff'; ctx.fillText("TENNIS COURT 🎾", 2250, 1580);
+      ctx.fillStyle = '#d35400'; ctx.fillRect(2100, 1620, 520, 320);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(2100, 1620, 520, 320);
+      ctx.strokeRect(2150, 1670, 420, 220);
+      ctx.beginPath(); ctx.moveTo(2360, 1620); ctx.lineTo(2360, 1940); ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.fillText("TENNIS COURT 🎾", 2360, 1600);
 
-      // Pista de Aterrizaje
-      ctx.fillStyle = '#1a1a1a'; ctx.fillRect(900, 2050, 900, 140);
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.setLineDash([30, 20]);
-      ctx.beginPath(); ctx.moveTo(920, 2120); ctx.lineTo(1780, 2120); ctx.stroke();
+      // Pista de Aterrizaje del Aeropuerto
+      ctx.fillStyle = '#111'; ctx.fillRect(1000, 2250, 1100, 150);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.setLineDash([35, 25]);
+      ctx.beginPath(); ctx.moveTo(1020, 2325); ctx.lineTo(2080, 2325); ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = '#fff'; ctx.font = 'bold 14px monospace'; ctx.fillText("AIRPORT RUNWAY", 1350, 2100);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 14px monospace'; ctx.fillText("AIRPORT METROPOLITAN RUNWAY ✈️", 1550, 2225);
 
-      // Dibujar Casas y Edificios
+      // Dibujar Casas Alineadas con Estilo Moderno
       houses.forEach(h => {
-        ctx.fillStyle = 'rgba(0,0,0,0.4)';
-        ctx.fillRect(h.x + 8, h.y + 8, h.w, h.h);
+        // Sombra de edificio
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(h.x + 10, h.y + 10, h.w, h.h);
 
-        ctx.fillStyle = h.id === 'house_bar' ? '#4a148c' : '#3e2723'; // Color especial para el Bar
+        // Estructura principal
+        ctx.fillStyle = h.id === 'house_bar' ? '#4a148c' : (h.id === 'house_shop' ? '#006064' : '#3e2723');
         ctx.fillRect(h.x, h.y, h.w, h.h);
-        ctx.strokeStyle = '#d7ccc8'; ctx.lineWidth = 3;
+        ctx.strokeStyle = '#f5f5f5'; ctx.lineWidth = 3;
         ctx.strokeRect(h.x, h.y, h.w, h.h);
 
-        ctx.fillStyle = h.id === 'house_bar' ? '#ff1744' : '#b71c1c';
-        ctx.fillRect(h.x - 10, h.y - 20, h.w + 20, 25);
-        ctx.strokeStyle = '#fff'; ctx.strokeRect(h.x - 10, h.y - 20, h.w + 20, 25);
+        // Techo / Marquesina comercial o residencial
+        ctx.fillStyle = h.id === 'house_bar' ? '#ff1744' : (h.id === 'house_shop' ? '#00e5ff' : '#b71c1c');
+        ctx.fillRect(h.x - 8, h.y - 22, h.w + 16, 26);
+        ctx.strokeStyle = '#fff'; ctx.strokeRect(h.x - 8, h.y - 22, h.w + 16, 26);
 
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
-        ctx.fillText(h.name, h.x + h.w / 2, h.y - 35);
-        ctx.fillText(h.furniture, h.x + h.w / 2, h.y + 45);
+        // Textos identificatorios
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+        ctx.fillText(h.name, h.x + h.w / 2, h.y - 37);
+        ctx.font = '10px monospace'; ctx.fillText(h.furniture, h.x + h.w / 2, h.y + 40);
 
+        // Ventanas decorativas
         ctx.fillStyle = '#81d4fa';
-        ctx.fillRect(h.x + 30, h.y + 70, 35, 45);
-        ctx.fillRect(h.x + h.w - 65, h.y + 70, 35, 45);
+        ctx.fillRect(h.x + 25, h.y + 60, 30, 40);
+        ctx.fillRect(h.x + h.w - 55, h.y + 60, 30, 40);
         ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
-        ctx.strokeRect(h.x + 30, h.y + 70, 35, 45);
-        ctx.strokeRect(h.x + h.w - 65, h.y + 70, 35, 45);
+        ctx.strokeRect(h.x + 25, h.y + 60, 30, 40);
+        ctx.strokeRect(h.x + h.w - 55, h.y + 60, 30, 40);
 
-        ctx.fillStyle = '#ffeb3b'; ctx.fillRect(h.doorX - 22, h.doorY - 6, 44, 12);
-        ctx.fillStyle = '#000'; ctx.font = '10px monospace'; ctx.fillText("🚪 ENTRANCE", h.doorX, h.doorY - 15);
+        // Puerta y felpudo
+        ctx.fillStyle = '#ffeb3b'; ctx.fillRect(h.doorX - 20, h.doorY - 6, 40, 12);
+        ctx.fillStyle = '#fff'; ctx.font = '9px monospace'; ctx.fillText("🚪 ENTRANCE", h.doorX, h.doorY - 14);
       });
 
-      // Árboles
+      // Árboles ornamentales en las aceras
       sceneryTrees.forEach(t => {
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
         ctx.beginPath(); ctx.arc(t.x + 4, t.y + 6, t.r, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#5d4037';
-        ctx.fillRect(t.x - 4, t.y, 8, 14);
+        ctx.fillStyle = '#4e342e';
+        ctx.fillRect(t.x - 4, t.y, 8, 16);
         ctx.fillStyle = '#2e7d32';
         ctx.beginPath(); ctx.arc(t.x, t.y - 6, t.r, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#4caf50';
-        ctx.beginPath(); ctx.arc(t.x - 4, t.y - 10, t.r * 0.6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#66bb6a';
+        ctx.beginPath(); ctx.arc(t.x - 4, t.y - 10, t.r * 0.55, 0, Math.PI * 2); ctx.fill();
       });
 
-      // Farolas
+      // Farolas con efectos de luz ambiental nocturna
       streetLights.forEach(l => {
-        ctx.fillStyle = '#78909c';
-        ctx.fillRect(l.x - 3, l.y - 25, 6, 30);
+        ctx.fillStyle = '#37474f';
+        ctx.fillRect(l.x - 4, l.y - 30, 8, 35);
         ctx.fillStyle = '#fff176';
-        ctx.beginPath(); ctx.arc(l.x, l.y - 25, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(l.x, l.y - 30, 7, 0, Math.PI * 2); ctx.fill();
+        // Halo de luz
+        let gradient = ctx.createRadialGradient(l.x, l.y - 30, 5, l.x, l.y - 30, 50);
+        gradient.addColorStop(0, 'rgba(255, 241, 118, 0.35)');
+        gradient.addColorStop(1, 'rgba(255, 241, 118, 0)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath(); ctx.arc(l.x, l.y - 30, 50, 0, Math.PI * 2); ctx.fill();
       });
 
-      // Nubes
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+      // Nubes dinámicas en el cielo
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
       clouds.forEach(c => {
         ctx.beginPath();
-        ctx.arc(c.x, c.y, 25, 0, Math.PI * 2);
-        ctx.arc(c.x + 20, c.y - 10, 20, 0, Math.PI * 2);
-        ctx.arc(c.x + 40, c.y, 22, 0, Math.PI * 2);
+        ctx.arc(c.x, c.y, 28, 0, Math.PI * 2);
+        ctx.arc(c.x + 24, c.y - 12, 22, 0, Math.PI * 2);
+        ctx.arc(c.x + 48, c.y, 25, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // Vehículos
+      // Vehículos distribuidos
       vehicles.forEach(v => {
         if (v.location === 'world') {
-          ctx.font = '24px monospace'; ctx.textAlign = 'center'; ctx.fillText(v.icon, v.x, v.y);
+          ctx.font = '26px monospace'; ctx.textAlign = 'center'; ctx.fillText(v.icon, v.x, v.y);
         }
       });
 
-      // Monedas
+      // Monedas coleccionables flotantes
       mapCoins.forEach(coin => {
         if (coin.active) {
-          ctx.font = '16px monospace'; ctx.textAlign = 'center';
-          ctx.fillText('🪙', coin.x, coin.y + Math.sin(animFrame * 0.1) * 3);
+          ctx.font = '18px monospace'; ctx.textAlign = 'center';
+          ctx.fillText('🪙', coin.x, coin.y + Math.sin(animFrame * 0.1) * 4);
         }
       });
     }
 
     function drawHouseInterior() {
-      ctx.fillStyle = '#3e2723'; ctx.fillRect(100, 100, 600, 400);
+      ctx.fillStyle = '#2c1e1a'; ctx.fillRect(100, 100, 600, 400);
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.strokeRect(100, 100, 600, 400);
       
-      ctx.fillStyle = '#4e342e'; ctx.fillRect(250, 200, 300, 200);
+      ctx.fillStyle = '#3e2723'; ctx.fillRect(250, 200, 300, 200);
+      ctx.strokeStyle = '#fff'; ctx.strokeRect(250, 200, 300, 100);
 
-      ctx.fillStyle = '#0f0'; ctx.fillRect(350, 490, 100, 10);
-      ctx.fillStyle = '#fff'; ctx.font = '12px monospace'; ctx.textAlign = 'center'; ctx.fillText("EXIT TO CITY", 400, 480);
-      ctx.strokeRect(250, 200, 300, 100);
+      ctx.fillStyle = '#0f0'; ctx.fillRect(300, 490, 100, 10);
+      ctx.fillStyle = '#fff'; ctx.font = '12px monospace'; ctx.textAlign = 'center'; ctx.fillText("EXIT TO CITY", 350, 480);
+      
       let houseObj = houses.find(h => h.id === localPlayer.location);
-      ctx.fillText(houseObj ? houseObj.furniture : '🛋️ Interior', 400, 255);
+      ctx.fillText(houseObj ? houseObj.furniture : '🛋️ Modern Interior', 400, 255);
     }
 
     function drawAvatar(p) {
       ctx.save();
       
       if (p.hasAura) {
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = '#0ff';
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = '#00ffff';
       }
 
       let bobY = (p.isMoving && !p.vehicle && !p.isMounted) ? Math.sin(animFrame * 0.3) * 3 : 0;
