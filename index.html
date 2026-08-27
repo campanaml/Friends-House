@@ -3,27 +3,43 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neighborhood World - Mega City PRO (v4.1.0)</title>
+  <title>Neighborhood World - Mega City PRO (v4.1.1)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
     body { background: #000; color: #fff; overflow: hidden; }
 
+    /* --- NUEVO ESTILO DE LOGIN / SETUP MODAL --- */
     #setup-modal {
       position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0,0,0,0.95); display: flex; flex-direction: column;
-      align-items: center; justify-content: center; z-index: 100;
+      background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100;
     }
     .setup-box {
-      border: 2px solid #fff; padding: 25px; background: #111;
-      display: flex; flex-direction: column; gap: 15px; width: 340px;
-      box-shadow: 0 0 20px rgba(255,255,255,0.2);
+      border: 2px solid #00ffcc; padding: 30px; background: rgba(10, 10, 10, 0.95);
+      display: flex; flex-direction: column; gap: 18px; width: 380px;
+      box-shadow: 0 0 30px rgba(0, 255, 204, 0.25);
+      border-radius: 8px;
     }
-    .setup-box input, .setup-box button, .setup-box select {
-      background: #000; color: #fff; border: 1px solid #fff; padding: 10px;
-      font-family: monospace; cursor: pointer;
+    .setup-box h2 {
+      color: #00ffcc; letter-spacing: 2px; font-size: 20px; text-shadow: 0 0 10px rgba(0,255,204,0.5);
     }
-    .setup-box button:hover { background: #fff; color: #000; }
+    .setup-box label {
+      font-size: 10px; color: #aaa; margin-bottom: -12px; text-transform: uppercase;
+    }
+    .setup-box input, .setup-box select {
+      background: #050505; color: #fff; border: 1px solid #444; padding: 12px;
+      font-family: monospace; border-radius: 4px; outline: none; transition: border-color 0.3s;
+    }
+    .setup-box input:focus, .setup-box select:focus {
+      border-color: #00ffcc; box-shadow: 0 0 8px rgba(0,255,204,0.3);
+    }
+    .setup-box button {
+      background: #00ffcc; color: #000; border: none; padding: 14px;
+      font-family: monospace; font-weight: bold; cursor: pointer; border-radius: 4px;
+      transition: all 0.2s; margin-top: 5px; letter-spacing: 1px;
+    }
+    .setup-box button:hover { background: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.6); }
 
     #game-container { display: none; width: 100vw; height: 100vh; position: relative; }
     canvas { display: block; background: #27ae60; width: 100vw; height: 100vh; }
@@ -92,17 +108,26 @@
 </head>
 <body>
 
+  <!-- MODAL DE LOGIN / SETUP MEJORADO -->
   <div id="setup-modal">
     <div class="setup-box">
-      <h2 style="text-align:center;">MEGA CITY v4.1.0</h2>
-      <div style="font-size: 10px; text-align: center; color: #888;">ACTIVE TRAFFIC & CROSSWALKS</div>
+      <h2 style="text-align:center;">MEGA CITY v4.1.1</h2>
+      <div style="font-size: 10px; text-align: center; color: #00ffcc;">ACTIVE TRAFFIC & CROSSWALKS</div>
+      
+      <label for="username-input">Citizen Name</label>
       <input type="text" id="username-input" placeholder="Enter Username..." maxlength="12">
-      <input type="text" id="world-id-input" placeholder="World ID (Default: main-city)">
+      
+      <label for="world-id-input">World ID</label>
+      <input type="text" id="world-id-input" placeholder="World ID (Default: main-city)" value="main-city">
+      
+      <label for="avatar-select">Select Avatar</label>
       <select id="avatar-select">
         <option value="martin">Martin</option>
         <option value="gaby">Gaby</option>
         <option value="default">Citizen</option>
       </select>
+      
+      <label for="color-select">Outfit Color</label>
       <select id="color-select">
         <option value="#ffffff">White</option>
         <option value="#00ffff">Cyan</option>
@@ -110,13 +135,14 @@
         <option value="#ffff00">Yellow</option>
         <option value="#ff5722">Orange</option>
       </select>
+      
       <button onclick="enterHouse()">ENTER METROPOLIS</button>
     </div>
   </div>
 
   <div id="game-container">
     <div id="hud">
-      <div>BUILD: <span style="color:#0f0;">v4.1.0 MEGA</span></div>
+      <div>BUILD: <span style="color:#0f0;">v4.1.1 MEGA</span></div>
       <div>ROOM: <span id="display-room-code">MAIN-CITY</span></div>
       <div>STATUS: <span id="status-tag" style="color:#0f0;">CONNECTING...</span></div>
       <div>LOCATION: <span id="location-tag">HOME</span></div>
@@ -172,7 +198,7 @@
   </div>
 
   <script>
-    const GAME_VERSION = "4.1.0";
+    const GAME_VERSION = "4.1.1";
     const WORLD_WIDTH = 4200;
     const WORLD_HEIGHT = 2800;
     const PLAYER_TIMEOUT_MS = 10000;
@@ -180,7 +206,14 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
-    // Fallback para dibujado de rectángulos redondeados si el navegador no soporta ctx.roundRect
+    // Cargar datos guardados previamente en el login si existen
+    window.addEventListener('DOMContentLoaded', () => {
+      const lastUser = localStorage.getItem('nh_last_username');
+      const lastColor = localStorage.getItem('nh_last_color');
+      if (lastUser) document.getElementById('username-input').value = lastUser;
+      if (lastColor) document.getElementById('color-select').value = lastColor;
+    });
+
     if (!ctx.roundRect) {
       ctx.roundRect = function(x, y, w, h, r) {
         if (typeof r === 'number') r = {tl: r, tr: r, br: r, bl: r};
@@ -571,14 +604,25 @@
 
     function enterHouse() {
       initAudio();
-      const customName = document.getElementById('username-input').value.trim();
+      let customName = document.getElementById('username-input').value.trim();
+      
+      // Auto-generar nombre aleatorio si está vacío
+      if (!customName) {
+        customName = `Citizen_${Math.floor(1000 + Math.random() * 9000)}`;
+      }
+
       selectedAvatar = document.getElementById('avatar-select').value;
       selectedColor = document.getElementById('color-select').value;
+      
+      // Guardar preferencias en localStorage
+      localStorage.setItem('nh_last_username', customName);
+      localStorage.setItem('nh_last_color', selectedColor);
+
       activeWorldRoom = document.getElementById('world-id-input').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || "main-city";
       window.location.hash = activeWorldRoom;
       document.getElementById('display-room-code').innerText = activeWorldRoom.toUpperCase();
 
-      localPlayer.name = customName || (selectedAvatar.charAt(0).toUpperCase() + selectedAvatar.slice(1));
+      localPlayer.name = customName;
       localPlayer.avatar = selectedAvatar;
       localPlayer.color = selectedColor;
       localPlayer.id = Math.random().toString(36).substring(2, 7);
@@ -916,7 +960,6 @@
     }
 
     function drawWorld() {
-      // Calles (Asfalto Oscuro)
       ctx.fillStyle = '#1c1c1c';
       ctx.fillRect(0, 400, WORLD_WIDTH, 140);
       ctx.fillRect(0, 1500, WORLD_WIDTH, 140);
@@ -924,7 +967,6 @@
       ctx.fillRect(1900, 0, 140, WORLD_HEIGHT);
       ctx.fillRect(2900, 0, 140, WORLD_HEIGHT);
 
-      // Veredas
       ctx.fillStyle = '#7f8c8d';
       ctx.fillRect(0, 360, WORLD_WIDTH, 40);
       ctx.fillRect(0, 540, WORLD_WIDTH, 40);
@@ -938,7 +980,6 @@
       ctx.fillRect(2860, 0, 40, WORLD_HEIGHT);
       ctx.fillRect(3040, 0, 40, WORLD_HEIGHT);
 
-      // Pasos de cebra en las esquinas e intersecciones principales
       let intersectionsX = [900, 1900, 2900];
       let intersectionsY = [400, 1500];
 
@@ -951,7 +992,6 @@
         });
       });
 
-      // Líneas de tráfico centrales
       ctx.strokeStyle = '#f1c40f';
       ctx.lineWidth = 4;
       ctx.setLineDash([25, 20]);
