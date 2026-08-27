@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neighborhood World - Multiplayer City with NPCs (v3.2.1)</title>
+  <title>Neighborhood World - Multiplayer City with NPCs & Traffic (v3.3.0)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
@@ -94,8 +94,8 @@
 
   <div id="setup-modal">
     <div class="setup-box">
-      <h2 style="text-align:center;">METROPOLIS v3.2.1</h2>
-      <div style="font-size: 10px; text-align: center; color: #888;">FIXED COLLISION & MOVEMENT LOCK</div>
+      <h2 style="text-align:center;">METROPOLIS v3.3.0</h2>
+      <div style="font-size: 10px; text-align: center; color: #888;">BIG VEHICLES & VERTICAL NPC PATROL</div>
       <input type="text" id="username-input" placeholder="Enter Username..." maxlength="12">
       <input type="text" id="world-id-input" placeholder="World ID (Default: main-city)">
       <select id="avatar-select">
@@ -116,7 +116,7 @@
 
   <div id="game-container">
     <div id="hud">
-      <div>BUILD: <span style="color:#0f0;">v3.2.1</span></div>
+      <div>BUILD: <span style="color:#0f0;">v3.3.0</span></div>
       <div>ROOM: <span id="display-room-code">MAIN-CITY</span></div>
       <div>STATUS: <span id="status-tag" style="color:#0f0;">CONNECTING...</span></div>
       <div>LOCATION: <span id="location-tag">HOME</span></div>
@@ -172,7 +172,7 @@
   </div>
 
   <script>
-    const GAME_VERSION = "3.2.1";
+    const GAME_VERSION = "3.3.0";
     const WORLD_WIDTH = 4200;
     const WORLD_HEIGHT = 2800;
     const PLAYER_TIMEOUT_MS = 10000;
@@ -250,18 +250,28 @@
       { x: 250, y: 200, w: 300, h: 100 }
     ];
 
+    // NPCs with horizontal and vertical patrolling capabilities
     let npcCitizens = [
-      { id: 'npc_1', name: 'Lucas', avatar: 'martin', color: '#00ffff', x: 500, y: 370, vx: 1.5, vy: 0, radius: 12 },
-      { id: 'npc_2', name: 'Sofia', avatar: 'gaby', color: '#ff00ff', x: 1200, y: 370, vx: -1.5, vy: 0, radius: 12 },
-      { id: 'npc_3', name: 'Mateo', avatar: 'default', color: '#ffff00', x: 2400, y: 370, vx: 1.2, vy: 0, radius: 12 },
-      { id: 'npc_4', name: 'Valentina', avatar: 'gaby', color: '#ff5722', x: 800, y: 1470, vx: -1.2, vy: 0, radius: 12 },
-      { id: 'npc_5', name: 'Diego', avatar: 'martin', color: '#00ff00', x: 2000, y: 1470, vx: 1.5, vy: 0, radius: 12 }
+      { id: 'npc_1', name: 'Lucas', avatar: 'martin', color: '#00ffff', x: 500, y: 370, vx: 1.5, vy: 0, minX: 150, maxX: 850, minY: 370, maxY: 370, radius: 12 },
+      { id: 'npc_2', name: 'Sofia', avatar: 'gaby', color: '#ff00ff', x: 970, y: 700, vx: 0, vy: 1.5, minX: 970, maxX: 970, minY: 500, maxY: 1300, radius: 12 },
+      { id: 'npc_3', name: 'Mateo', avatar: 'default', color: '#ffff00', x: 2400, y: 370, vx: 1.2, vy: 0, minX: 2050, maxX: 2850, minY: 370, maxY: 370, radius: 12 },
+      { id: 'npc_4', name: 'Valentina', avatar: 'gaby', color: '#ff5722', x: 1970, y: 1000, vx: 0, vy: -1.4, minX: 1970, maxX: 1970, minY: 600, maxY: 1400, radius: 12 },
+      { id: 'npc_5', name: 'Diego', avatar: 'martin', color: '#00ff00', x: 2000, y: 1470, vx: 1.5, vy: 0, minX: 1500, maxX: 2800, minY: 1470, maxY: 1470, radius: 12 }
     ];
 
     let npcVehicles = [
       { id: 'npcc_1', type: 'car', icon: '🚕', x: 400, y: 445, vx: 3, vy: 0 },
       { id: 'npcc_2', type: 'car', icon: '🚙', x: 1800, y: 495, vx: -3, vy: 0 },
-      { id: 'npcc_3', type: 'car', icon: '🚗', x: 1000, y: 1545, vx: 3, vy: 0 }
+      { id: 'npcc_3', type: 'car', icon: '🚗', x: 1000, y: 1545, vx: 3, vy: 0 },
+      { id: 'npcc_4', type: 'car', icon: '🚐', x: 1945, y: 800, vx: 0, vy: 2.5 }
+    ];
+
+    // Traffic Lights System
+    let trafficLights = [
+      { x: 935, y: 380, state: 'green', timer: 0 },
+      { x: 1935, y: 380, state: 'red', timer: 0 },
+      { x: 2935, y: 380, state: 'green', timer: 0 },
+      { x: 935, y: 1480, state: 'red', timer: 0 }
     ];
 
     let sceneryTrees = [
@@ -281,10 +291,11 @@
       { x: 300, y: 70, speed: 0.18 }, { x: 1400, y: 110, speed: 0.12 }, { x: 2800, y: 80, speed: 0.22 }, { x: 3700, y: 90, speed: 0.15 }
     ];
 
+    // Vehicles made larger & scaled for the city
     let vehicles = [
-      { id: 'v_car1', type: 'car', icon: '🏎️', x: 600, y: 470, speed: 7, driver: null, location: 'world' },
-      { id: 'v_car2', type: 'car', icon: '🚓', x: 2200, y: 1470, speed: 7, driver: null, location: 'world' },
-      { id: 'v_plane1', type: 'plane', icon: '🛩️', x: 1800, y: 2350, speed: 10, driver: null, location: 'world' }
+      { id: 'v_car1', type: 'car', icon: '🏎️', x: 600, y: 465, speed: 8, driver: null, location: 'world' },
+      { id: 'v_car2', type: 'car', icon: '🚓', x: 2200, y: 1465, speed: 8, driver: null, location: 'world' },
+      { id: 'v_plane1', type: 'plane', icon: '🛩️', x: 1800, y: 2330, speed: 11, driver: null, location: 'world' }
     ];
 
     let mapCoins = [
@@ -550,7 +561,7 @@
     }
 
     function initMultiplayerGlobal() {
-      const hostRoomId = `nh-${activeWorldRoom}-host-v321`;
+      const hostRoomId = `nh-${activeWorldRoom}-host-v330`;
       setTimeout(() => {
         peer = new Peer(hostRoomId);
         peer.on('open', () => {
@@ -691,13 +702,13 @@
       if (localPlayer.location === 'world') {
         if (localPlayer.vehicle) {
           let v = vehicles.find(item => item.id === localPlayer.vehicle);
-          if (v) { v.driver = null; localPlayer.x = v.x + 40; localPlayer.y = v.y + 40; }
+          if (v) { v.driver = null; localPlayer.x = v.x + 50; localPlayer.y = v.y + 50; }
           localPlayer.vehicle = null;
           broadcast({ type: 'move', player: localPlayer, vehicles });
           return;
         }
         vehicles.forEach(v => {
-          if (!v.driver && Math.hypot(localPlayer.x - v.x, localPlayer.y - v.y) < 50) {
+          if (!v.driver && Math.hypot(localPlayer.x - v.x, localPlayer.y - v.y) < 65) {
             v.driver = localPlayer.id; localPlayer.vehicle = v.id; localPlayer.isMounted = false;
           }
         });
@@ -748,17 +759,27 @@
     }
 
     function updateNPCs() {
+      // Automatic timing update for traffic lights
+      if (animFrame % 180 === 0) {
+        trafficLights.forEach(tl => {
+          tl.state = (tl.state === 'green') ? 'red' : 'green';
+        });
+      }
+
       npcCitizens.forEach(npc => {
         npc.x += npc.vx;
-        if (npc.x < 100 || npc.x > WORLD_WIDTH - 100) {
-          npc.vx *= -1;
-        }
+        npc.y += npc.vy;
+        if (npc.vx !== 0 && (npc.x < npc.minX || npc.x > npc.maxX)) npc.vx *= -1;
+        if (npc.vy !== 0 && (npc.y < npc.minY || npc.y > npc.maxY)) npc.vy *= -1;
       });
 
       npcVehicles.forEach(car => {
         car.x += car.vx;
+        car.y += car.vy;
         if (car.x < 100) car.x = WORLD_WIDTH - 200;
         if (car.x > WORLD_WIDTH - 100) car.x = 200;
+        if (car.y < 100) car.y = WORLD_HEIGHT - 200;
+        if (car.y > WORLD_HEIGHT - 100) car.y = 200;
       });
     }
 
@@ -893,6 +914,19 @@
         ctx.fillStyle = '#fff'; ctx.font = '9px monospace'; ctx.fillText("🚪 ENTRANCE", h.doorX, h.doorY - 14);
       });
 
+      // Render Traffic Lights cleanly aligned to intersections
+      trafficLights.forEach(tl => {
+        ctx.fillStyle = '#222';
+        ctx.fillRect(tl.x - 6, tl.y - 28, 12, 36);
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+        ctx.strokeRect(tl.x - 6, tl.y - 28, 12, 36);
+
+        ctx.fillStyle = tl.state === 'red' ? '#e74c3c' : '#555';
+        ctx.beginPath(); ctx.arc(tl.x, tl.y - 18, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = tl.state === 'green' ? '#2ecc71' : '#555';
+        ctx.beginPath(); ctx.arc(tl.x, tl.y - 6, 4, 0, Math.PI * 2); ctx.fill();
+      });
+
       npcCitizens.forEach(npc => {
         ctx.fillStyle = npc.color;
         ctx.beginPath();
@@ -907,7 +941,7 @@
       });
 
       npcVehicles.forEach(car => {
-        ctx.font = '24px monospace';
+        ctx.font = '32px monospace'; // Larger NPC vehicle scale
         ctx.textAlign = 'center';
         ctx.fillText(car.icon, car.x, car.y);
       });
@@ -944,9 +978,10 @@
         ctx.fill();
       });
 
+      // Render world-driven user vehicles (enlarged font/size for enhanced presence)
       vehicles.forEach(v => {
         if (v.location === 'world') {
-          ctx.font = '26px monospace'; ctx.textAlign = 'center'; ctx.fillText(v.icon, v.x, v.y);
+          ctx.font = '34px monospace'; ctx.textAlign = 'center'; ctx.fillText(v.icon, v.x, v.y);
         }
       });
 
