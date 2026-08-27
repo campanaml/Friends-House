@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neighborhood World - Mega City PRO (v4.0.0)</title>
+  <title>Neighborhood World - Mega City PRO (v4.1.0)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
@@ -94,7 +94,7 @@
 
   <div id="setup-modal">
     <div class="setup-box">
-      <h2 style="text-align:center;">MEGA CITY v4.0.0</h2>
+      <h2 style="text-align:center;">MEGA CITY v4.1.0</h2>
       <div style="font-size: 10px; text-align: center; color: #888;">ACTIVE TRAFFIC & CROSSWALKS</div>
       <input type="text" id="username-input" placeholder="Enter Username..." maxlength="12">
       <input type="text" id="world-id-input" placeholder="World ID (Default: main-city)">
@@ -116,7 +116,7 @@
 
   <div id="game-container">
     <div id="hud">
-      <div>BUILD: <span style="color:#0f0;">v4.0.0 MEGA</span></div>
+      <div>BUILD: <span style="color:#0f0;">v4.1.0 MEGA</span></div>
       <div>ROOM: <span id="display-room-code">MAIN-CITY</span></div>
       <div>STATUS: <span id="status-tag" style="color:#0f0;">CONNECTING...</span></div>
       <div>LOCATION: <span id="location-tag">HOME</span></div>
@@ -172,13 +172,38 @@
   </div>
 
   <script>
-    const GAME_VERSION = "4.0.0";
+    const GAME_VERSION = "4.1.0";
     const WORLD_WIDTH = 4200;
     const WORLD_HEIGHT = 2800;
     const PLAYER_TIMEOUT_MS = 10000;
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+
+    // Fallback para dibujado de rectángulos redondeados si el navegador no soporta ctx.roundRect
+    if (!ctx.roundRect) {
+      ctx.roundRect = function(x, y, w, h, r) {
+        if (typeof r === 'number') r = {tl: r, tr: r, br: r, bl: r};
+        else {
+          var defaultRadius = {tl: 0, tr: 0, br: 0, bl: 0};
+          for (var side in defaultRadius) {
+            r[side] = r[side] || defaultRadius[side];
+          }
+        }
+        this.beginPath();
+        this.moveTo(x + r.tl, y);
+        this.lineTo(x + w - r.tr, y);
+        this.quadraticCurveTo(x + w, y, x + w, y + r.tr);
+        this.lineTo(x + w, y + h - r.br);
+        this.quadraticCurveTo(x + w, y + h, x + w - r.br, y + h);
+        this.lineTo(x + r.bl, y + h);
+        this.quadraticCurveTo(x, y + h, x, y + h - r.bl);
+        this.lineTo(x, y + r.tl);
+        this.quadraticCurveTo(x, y, x + r.tl, y);
+        this.closePath();
+        return this;
+      };
+    }
 
     function resizeCanvas() {
       canvas.width = window.innerWidth;
@@ -258,7 +283,6 @@
       { id: 'npc_5', name: 'Diego', avatar: 'martin', color: '#00ff00', x: 2000, y: 1465, vx: 1.2, vy: 0, minX: 1500, maxX: 2800, minY: 1465, maxY: 1465, radius: 12, walkCycle: 0 }
     ];
 
-    // Tráfico masivo variado: Coches, Camiones y Motos PRO
     let npcVehicles = [
       { id: 'npcc_1', type: 'car', color: '#e74c3c', x: 300, y: 445, vx: 3.5, vy: 0, angle: 0 },
       { id: 'npcc_2', type: 'truck', color: '#34495e', x: 1200, y: 495, vx: -2.0, vy: 0, angle: Math.PI },
@@ -300,7 +324,7 @@
     let vehicles = [
       { id: 'v_car1', type: 'car', color: '#e67e22', x: 600, y: 465, speed: 8, driver: null, location: 'world' },
       { id: 'v_car2', type: 'car', color: '#2980b9', x: 2200, y: 1465, speed: 8, driver: null, location: 'world' },
-      { id: 'v_plane1', type: 'plane', color: '#ecf0f1', x: 1800, y: 2330, speed: 11, driver: null, location: 'world' }
+      { id: 'v_plane1', type: 'plane', icon: '✈️', color: '#ecf0f1', x: 1800, y: 2330, speed: 11, driver: null, location: 'world' }
     ];
 
     let mapCoins = [
@@ -321,16 +345,20 @@
     ];
 
     let audioCtx = null;
-    let ambientTrafficNode = null;
 
     function initAudio() {
       if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        startAmbientTrafficSound();
+        try {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          startAmbientTrafficSound();
+        } catch(e) {
+          console.log("Audio API Error:", e);
+        }
+      } else if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
       }
     }
 
-    // Sonido ambiental de tráfico continuo PRO
     function startAmbientTrafficSound() {
       if (!audioCtx) return;
       try {
@@ -361,14 +389,17 @@
     
     function playTone(freq, type, duration, vol) {
       if (!audioCtx) return;
-      let osc = audioCtx.createOscillator();
-      let gain = audioCtx.createGain();
-      osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-      gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-      osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.start(); osc.stop(audioCtx.currentTime + duration);
+      try {
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + duration);
+      } catch(e) {}
     }
+
     function playCoinSFX() { playTone(987, 'sine', 0.2, 0.1); }
     function playFootstepSFX() { playTone(120, 'triangle', 0.05, 0.02); }
     function playVehicleSFX() { playTone(55, 'sawtooth', 0.08, 0.025); }
@@ -869,7 +900,6 @@
       }
     }
 
-    // Función auxiliar para dibujar pasos de cebra con alineación perfecta
     function drawCrosswalk(x, y, w, h, horizontal = true) {
       ctx.fillStyle = '#ffffff';
       let stripeSize = 14;
@@ -886,7 +916,7 @@
     }
 
     function drawWorld() {
-      // Calles (Asfalto Oscuro) con alineación exacta
+      // Calles (Asfalto Oscuro)
       ctx.fillStyle = '#1c1c1c';
       ctx.fillRect(0, 400, WORLD_WIDTH, 140);
       ctx.fillRect(0, 1500, WORLD_WIDTH, 140);
@@ -894,7 +924,7 @@
       ctx.fillRect(1900, 0, 140, WORLD_HEIGHT);
       ctx.fillRect(2900, 0, 140, WORLD_HEIGHT);
 
-      // Veredas (Color Gris Elegante PRO) con alineación perfecta
+      // Veredas
       ctx.fillStyle = '#7f8c8d';
       ctx.fillRect(0, 360, WORLD_WIDTH, 40);
       ctx.fillRect(0, 540, WORLD_WIDTH, 40);
@@ -914,10 +944,8 @@
 
       intersectionsX.forEach(ix => {
         intersectionsY.forEach(iy => {
-          // Cebra horizontal superior e inferior de la intersección
           drawCrosswalk(ix - 40, iy, 40, 140, false);
           drawCrosswalk(ix + 140, iy, 40, 140, false);
-          // Cebra vertical izquierda y derecha de la intersección
           drawCrosswalk(ix, iy - 40, 140, 40, true);
           drawCrosswalk(ix, iy + 140, 140, 40, true);
         });
@@ -1011,7 +1039,6 @@
         drawCharacterEntity(npc.x, npc.y, npc.color, npc.name + ' [NPC]', npc.walkCycle, npc.vx !== 0 ? 'walkX' : 'walkY');
       });
 
-      // Dibujar tráfico masivo (Coches, Camiones, Motos)
       npcVehicles.forEach(veh => {
         drawDetailedVehicle(veh.x, veh.y, veh.color, veh.type, veh.vx > 0 ? 0 : (veh.vx < 0 ? Math.PI : (veh.vy > 0 ? Math.PI/2 : -Math.PI/2)));
       });
@@ -1051,7 +1078,7 @@
       vehicles.forEach(v => {
         if (v.location === 'world') {
           if (v.type === 'plane') {
-            ctx.font = '34px monospace'; ctx.textAlign = 'center'; ctx.fillText(v.icon, v.x, v.y);
+            ctx.font = '34px monospace'; ctx.textAlign = 'center'; ctx.fillText(v.icon || '✈️', v.x, v.y);
           } else {
             drawDetailedVehicle(v.x, v.y, v.color, 'car', 0);
           }
@@ -1066,14 +1093,12 @@
       });
     }
 
-    // Renderizador avanzado de vehículos (Coches, Camiones de carga y Motos)
     function drawDetailedVehicle(x, y, color, type, angle) {
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(angle);
 
       if (type === 'truck') {
-        // Camión de carga PRO
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(-45, -22, 90, 44);
 
@@ -1085,20 +1110,17 @@
         ctx.fillRect(-15, 18, 14, 8);
         ctx.fillRect(20, 18, 14, 8);
 
-        // Cabina
         ctx.fillStyle = color;
         ctx.fillRect(20, -18, 22, 36);
         ctx.fillStyle = '#222';
         ctx.fillRect(26, -14, 10, 28);
 
-        // Caja de carga
         ctx.fillStyle = '#ecf0f1';
         ctx.fillRect(-42, -20, 60, 40);
         ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 2;
         ctx.strokeRect(-42, -20, 60, 40);
 
       } else if (type === 'moto') {
-        // Moto PRO
         ctx.fillStyle = 'rgba(0,0,0,0.4)';
         ctx.fillRect(-16, -10, 32, 20);
 
@@ -1112,7 +1134,6 @@
         ctx.fillRect(8, -4, 4, 8);
 
       } else {
-        // Coche estándar PRO
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(-32, -18, 64, 36);
 
