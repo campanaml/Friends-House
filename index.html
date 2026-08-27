@@ -3,13 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neighborhood World - Multiplayer Game (v1.9.0)</title>
+  <title>Neighborhood World - Multiplayer Game (v2.0.0)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
     body { background: #000; color: #fff; overflow: hidden; }
 
-    /* Modal Setup / Login */
     #setup-modal {
       position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
       background: rgba(0,0,0,0.95); display: flex; flex-direction: column;
@@ -25,9 +24,8 @@
     }
     .setup-box button:hover { background: #fff; color: #000; }
 
-    /* UI Principal del Juego */
     #game-container { display: none; width: 100vw; height: 100vh; position: relative; }
-    canvas { display: block; background: #1b4d2e; width: 100vw; height: 100vh; } /* Césped de fondo */
+    canvas { display: block; background: #1b4d2e; width: 100vw; height: 100vh; }
 
     #hud {
       position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8);
@@ -36,7 +34,7 @@
     }
     
     #hud-controls {
-      position: absolute; top: 10px; right: 10px; z-index: 10; display: flex; gap: 5px;
+      position: absolute; top: 10px; right: 10px; z-index: 10; display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; max-width: 450px;
     }
     #hud-controls button {
       background: rgba(0,0,0,0.8); color: #fff; border: 1px solid #fff;
@@ -44,7 +42,6 @@
     }
     #hud-controls button:hover { background: #fff; color: #000; }
 
-    /* Modales de Tienda e Inventario */
     .game-modal {
       display: none; position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -50%); background: #111; border: 2px solid #fff;
@@ -55,7 +52,6 @@
     .item-row button { background: #000; color: #fff; border: 1px solid #fff; padding: 4px 8px; cursor: pointer; }
     .item-row button:hover { background: #fff; color: #000; }
 
-    /* Chat Container */
     #chat-container {
       position: absolute; bottom: 10px; left: 10px; width: 300px;
       background: rgba(0,0,0,0.85); border: 1px solid #fff; z-index: 10;
@@ -69,7 +65,6 @@
     #chat-input-box { border-top: 1px solid #fff; display: flex; }
     #chat-input { background: #000; color: #fff; border: none; padding: 8px; width: 100%; font-family: monospace; }
 
-    /* Notificaciones */
     #notification-zone {
       position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
       z-index: 30; pointer-events: none; display: flex; flex-direction: column; gap: 5px;
@@ -81,7 +76,6 @@
     .toast.success { border-color: #0f0; color: #0f0; }
     .toast.error { border-color: #f00; color: #f00; }
 
-    /* Mandos táctiles para móviles */
     #mobile-controls {
       display: none; position: absolute; bottom: 20px; right: 20px; z-index: 10;
     }
@@ -98,10 +92,10 @@
 
   <div id="setup-modal">
     <div class="setup-box">
-      <h2 style="text-align:center;">ENTER NEIGHBORHOOD</h2>
-      <div style="font-size: 10px; text-align: center; color: #888;">BUILD: v1.9.0</div>
+      <h2 style="text-align:center;">ENTER CITY v2.0</h2>
+      <div style="font-size: 10px; text-align: center; color: #888;">BUILD: v2.0.0</div>
       <input type="text" id="username-input" placeholder="Enter Username..." maxlength="12">
-      <input type="text" id="world-id-input" placeholder="World ID (Default: main-town)">
+      <input type="text" id="world-id-input" placeholder="World ID (Default: main-city)">
       <select id="avatar-select">
         <option value="martin">Martin</option>
         <option value="gaby">Gaby</option>
@@ -113,14 +107,14 @@
         <option value="#ff00ff">Magenta</option>
         <option value="#ffff00">Yellow</option>
       </select>
-      <button onclick="enterHouse()">START GAME</button>
+      <button onclick="enterHouse()">START EXPLORING</button>
     </div>
   </div>
 
   <div id="game-container">
     <div id="hud">
-      <div>BUILD: <span style="color:#0f0;">v1.9.0</span></div>
-      <div>ROOM: <span id="display-room-code">MAIN-TOWN</span></div>
+      <div>BUILD: <span style="color:#0f0;">v2.0.0</span></div>
+      <div>ROOM: <span id="display-room-code">MAIN-CITY</span></div>
       <div>STATUS: <span id="status-tag" style="color:#0f0;">CONNECTING...</span></div>
       <div>LOCATION: <span id="location-tag">HOME</span></div>
       <div>COINS: $<span id="coins-display">100</span></div>
@@ -175,9 +169,9 @@
   </div>
 
   <script>
-    const GAME_VERSION = "1.9.0";
-    const WORLD_WIDTH = 2400;
-    const WORLD_HEIGHT = 1600;
+    const GAME_VERSION = "2.0.0";
+    const WORLD_WIDTH = 3600;
+    const WORLD_HEIGHT = 2400;
     const PLAYER_TIMEOUT_MS = 10000;
 
     const canvas = document.getElementById('gameCanvas');
@@ -193,7 +187,7 @@
     let peer = null;
     let connections = {};
     let isHost = false;
-    let activeWorldRoom = "main-town";
+    let activeWorldRoom = "main-city";
     let heartbeatInterval = null;
     let animFrame = 0;
 
@@ -223,16 +217,23 @@
       dir: 'down'
     };
 
+    // Mapa expandido con Casas, Bar y Zonas recreativas
     let houses = [
-      { id: 'house_martin', name: "Martin's House", x: 200, y: 200, w: 300, h: 200, doorX: 350, doorY: 400, exitX: 350, exitY: 430, furniture: '📺 TV Room' },
-      { id: 'house_gaby', name: "Gaby's House", x: 1000, y: 200, w: 300, h: 200, doorX: 1150, doorY: 400, exitX: 1150, exitY: 430, furniture: '🌺 Garden Couch' },
-      { id: 'house_default', name: "Community Hub", x: 1800, y: 200, w: 300, h: 200, doorX: 1950, doorY: 400, exitX: 1950, exitY: 430, furniture: '☕ Coffee Bar' }
+      { id: 'house_martin', name: "Martin's House", x: 200, y: 200, w: 280, h: 180, doorX: 340, doorY: 380, exitX: 340, exitY: 410, furniture: '📺 TV Room' },
+      { id: 'house_gaby', name: "Gaby's House", x: 1000, y: 200, w: 280, h: 180, doorX: 1140, doorY: 380, exitX: 1140, exitY: 410, furniture: '🌺 Garden Couch' },
+      { id: 'house_bar', name: "The Neon Pub", x: 1800, y: 200, w: 320, h: 180, doorX: 1960, doorY: 380, exitX: 1960, exitY: 410, furniture: '🍻 Bar Counter & Jukebox' },
+      { id: 'house_extra1', name: "Suburban Home A", x: 2600, y: 200, w: 280, h: 180, doorX: 2740, doorY: 380, exitX: 2740, exitY: 410, furniture: '🛋️ Cozy Living' },
+      { id: 'house_extra2', name: "Suburban Home B", x: 2600, y: 1600, w: 280, h: 180, doorX: 2740, doorY: 1780, exitX: 2740, exitY: 1810, furniture: '🛏️ Master Bedroom' }
     ];
 
     let outdoorSolids = [
-      { x: 200, y: 200, w: 300, h: 200 },
-      { x: 1000, y: 200, w: 300, h: 200 },
-      { x: 1800, y: 200, w: 300, h: 200 }
+      { x: 200, y: 200, w: 280, h: 180 },
+      { x: 1000, y: 200, w: 280, h: 180 },
+      { x: 1800, y: 200, w: 320, h: 180 },
+      { x: 2600, y: 200, w: 280, h: 180 },
+      { x: 2600, y: 1600, w: 280, h: 180 },
+      // Obstáculos de la plaza central
+      { x: 1150, y: 1150, w: 300, h: 200 }
     ];
 
     let houseSolids = [
@@ -244,34 +245,36 @@
       { x: 250, y: 200, w: 300, h: 100 }
     ];
 
-    // Elementos de Naturaleza y Paisaje mejorados
     let sceneryTrees = [
       { x: 100, y: 100, r: 25 }, { x: 650, y: 120, r: 30 }, { x: 900, y: 150, r: 22 },
-      { x: 1500, y: 100, r: 28 }, { x: 2200, y: 180, r: 35 }, { x: 150, y: 700, r: 25 },
-      { x: 650, y: 750, r: 30 }, { x: 1400, y: 700, r: 24 }, { x: 2100, y: 800, r: 32 },
-      { x: 300, y: 1300, r: 28 }, { x: 950, y: 1400, r: 30 }, { x: 1800, y: 1350, r: 26 }
+      { x: 1500, y: 100, r: 28 }, { x: 2400, y: 100, r: 35 }, { x: 3200, y: 150, r: 28 },
+      { x: 150, y: 900, r: 25 }, { x: 650, y: 950, r: 30 }, { x: 1400, y: 900, r: 24 },
+      { x: 300, y: 2100, r: 28 }, { x: 1200, y: 2200, r: 30 }, { x: 2200, y: 2150, r: 26 }, { x: 3200, y: 2100, r: 30 }
     ];
 
     let streetLights = [
       { x: 760, y: 460 }, { x: 840, y: 460 },
-      { x: 1560, y: 460 }, { x: 1640, y: 460 }
+      { x: 1660, y: 460 }, { x: 1740, y: 460 },
+      { x: 760, y: 1460 }, { x: 840, y: 1460 }
     ];
 
     let clouds = [
-      { x: 200, y: 80, speed: 0.2 }, { x: 900, y: 120, speed: 0.15 }, { x: 1700, y: 90, speed: 0.25 }
+      { x: 200, y: 80, speed: 0.2 }, { x: 1200, y: 120, speed: 0.15 }, { x: 2500, y: 90, speed: 0.25 }
     ];
 
     let vehicles = [
       { id: 'v_car1', type: 'car', icon: '🏎️', x: 600, y: 530, speed: 7, driver: null, location: 'world' },
-      { id: 'v_plane1', type: 'plane', icon: '🛩️', x: 1200, y: 1150, speed: 10, driver: null, location: 'world' }
+      { id: 'v_car2', type: 'car', icon: '🚓', x: 2200, y: 1530, speed: 7, driver: null, location: 'world' },
+      { id: 'v_plane1', type: 'plane', icon: '🛩️', x: 1600, y: 2050, speed: 10, driver: null, location: 'world' }
     ];
 
     let mapCoins = [
       { id: 1, x: 500, y: 600, active: true },
-      { id: 2, x: 900, y: 700, active: true },
-      { id: 3, x: 1400, y: 400, active: true },
-      { id: 4, x: 300, y: 900, active: true },
-      { id: 5, x: 1700, y: 900, active: true }
+      { id: 2, x: 1300, y: 800, active: true },
+      { id: 3, x: 2100, y: 500, active: true },
+      { id: 4, x: 800, y: 1800, active: true },
+      { id: 5, x: 2800, y: 1400, active: true },
+      { id: 6, x: 1600, y: 1200, active: true }
     ];
 
     let shopItems = [
@@ -468,7 +471,7 @@
       const customName = document.getElementById('username-input').value.trim();
       selectedAvatar = document.getElementById('avatar-select').value;
       selectedColor = document.getElementById('color-select').value;
-      activeWorldRoom = document.getElementById('world-id-input').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || "main-town";
+      activeWorldRoom = document.getElementById('world-id-input').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || "main-city";
       window.location.hash = activeWorldRoom;
       document.getElementById('display-room-code').innerText = activeWorldRoom.toUpperCase();
 
@@ -525,12 +528,12 @@
     }
 
     function initMultiplayerGlobal() {
-      const hostRoomId = `nh-${activeWorldRoom}-host-v190`;
+      const hostRoomId = `nh-${activeWorldRoom}-host-v200`;
       setTimeout(() => {
         peer = new Peer(hostRoomId);
         peer.on('open', () => {
           isHost = true;
-          document.getElementById('status-tag').innerText = "HOSTING WORLD";
+          document.getElementById('status-tag').innerText = "HOSTING CITY";
         });
         peer.on('error', (err) => {
           if (err.type === 'unavailable-id') {
@@ -685,7 +688,7 @@
       } else {
         if (Math.hypot(localPlayer.x - 400, localPlayer.y - 480) < 50) {
           let h = houses.find(item => item.id === localPlayer.location);
-          localPlayer.location = 'world'; localPlayer.x = h ? h.exitX : 300; localPlayer.y = h ? h.exitY : 430;
+          localPlayer.location = 'world'; localPlayer.x = h ? h.exitX : 300; localPlayer.y = h ? h.exitY : 410;
           document.getElementById('location-tag').innerText = "WORLD";
         }
       }
@@ -726,7 +729,6 @@
       animFrame++;
       cleanupGhostPlayers();
 
-      // Mover nubes de fondo
       clouds.forEach(c => {
         c.x += c.speed;
         if (c.x > WORLD_WIDTH + 100) c.x = -100;
@@ -768,91 +770,111 @@
     }
 
     function drawWorld() {
-      // Dibujar Calles con mejor diseño y líneas de carril
-      ctx.fillStyle = '#2c2c2c'; // Asfalto oscuro realista
-      // Calle Horizontal
+      // Calles en retícula expandida
+      ctx.fillStyle = '#2c2c2c';
       ctx.fillRect(0, 440, WORLD_WIDTH, 120);
-      // Calles Verticales
+      ctx.fillRect(0, 1440, WORLD_WIDTH, 120);
       ctx.fillRect(740, 0, 120, WORLD_HEIGHT);
-      ctx.fillRect(1540, 0, 120, WORLD_HEIGHT);
+      ctx.fillRect(1740, 0, 120, WORLD_HEIGHT);
+      ctx.fillRect(2740, 0, 120, WORLD_HEIGHT);
 
-      // Líneas divisorias de carriles (amarillas/blancas punteadas)
+      // Líneas de carril
       ctx.strokeStyle = '#f1c40f';
       ctx.lineWidth = 4;
       ctx.setLineDash([20, 15]);
-      // Horizontal
       ctx.beginPath(); ctx.moveTo(0, 500); ctx.lineTo(WORLD_WIDTH, 500); ctx.stroke();
-      // Verticales
+      ctx.beginPath(); ctx.moveTo(0, 1500); ctx.lineTo(WORLD_WIDTH, 1500); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(800, 0); ctx.lineTo(800, WORLD_HEIGHT); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(1600, 0); ctx.lineTo(1600, WORLD_HEIGHT); ctx.stroke();
-      ctx.setLineDash([]); // Resetear patrón de línea
-
-      // Pista de Aterrizaje decorada
-      ctx.fillStyle = '#1a1a1a'; ctx.fillRect(800, 1130, 900, 140);
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.setLineDash([30, 20]);
-      ctx.beginPath(); ctx.moveTo(820, 1200); ctx.lineTo(1680, 1200); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(1800, 0); ctx.lineTo(1800, WORLD_HEIGHT); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(2800, 0); ctx.lineTo(2800, WORLD_HEIGHT); ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = '#fff'; ctx.font = 'bold 14px monospace'; ctx.fillText("AIRPORT RUNWAY", 1210, 1180);
 
-      // Dibujar Casas / Edificios con Estilo Mejorado
+      // --- PLAZA CENTRAL ---
+      ctx.fillStyle = '#27ae60'; // Césped brillante de la plaza
+      ctx.fillRect(950, 950, 700, 500);
+      ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 6; ctx.strokeRect(950, 950, 700, 500);
+      // Fuente central en la plaza
+      ctx.fillStyle = '#2980b9'; ctx.beginPath(); ctx.arc(1300, 1200, 60, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = '#3498db'; ctx.beginPath(); ctx.arc(1300, 1200, 30, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center'; ctx.fillText("CENTRAL PARK & FOUNTAIN", 1300, 1110);
+
+      // --- CANCHA DE FÚTBOL ---
+      ctx.fillStyle = '#1e8449'; ctx.fillRect(2000, 900, 600, 350);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(2000, 900, 600, 350);
+      // Mitad de cancha y círculo central
+      ctx.beginPath(); ctx.moveTo(2300, 900); ctx.lineTo(2300, 1250); ctx.stroke();
+      ctx.beginPath(); ctx.arc(2300, 1075, 50, 0, Math.PI * 2); ctx.stroke();
+      // Arcos
+      ctx.strokeRect(2000, 1000, 30, 150);
+      ctx.strokeRect(2570, 1000, 30, 150);
+      ctx.fillStyle = '#fff'; ctx.fillText("SOCCER FIELD ⚽", 2300, 880);
+
+      // --- CANCHA DE TENIS ---
+      ctx.fillStyle = '#d35400'; ctx.fillRect(2000, 1600, 500, 300);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(2000, 1600, 500, 300);
+      // Líneas de tenis
+      ctx.strokeRect(2050, 1650, 400, 200);
+      ctx.beginPath(); ctx.moveTo(2250, 1600); ctx.lineTo(2250, 1900); ctx.stroke(); // Red
+      ctx.fillStyle = '#fff'; ctx.fillText("TENNIS COURT 🎾", 2250, 1580);
+
+      // Pista de Aterrizaje
+      ctx.fillStyle = '#1a1a1a'; ctx.fillRect(900, 2050, 900, 140);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.setLineDash([30, 20]);
+      ctx.beginPath(); ctx.moveTo(920, 2120); ctx.lineTo(1780, 2120); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 14px monospace'; ctx.fillText("AIRPORT RUNWAY", 1350, 2100);
+
+      // Dibujar Casas y Edificios
       houses.forEach(h => {
-        // Sombra de la casa
         ctx.fillStyle = 'rgba(0,0,0,0.4)';
         ctx.fillRect(h.x + 8, h.y + 8, h.w, h.h);
 
-        // Estructura de la casa
-        ctx.fillStyle = '#3e2723'; // Paredes de ladrillo / madera oscura
+        ctx.fillStyle = h.id === 'house_bar' ? '#4a148c' : '#3e2723'; // Color especial para el Bar
         ctx.fillRect(h.x, h.y, h.w, h.h);
         ctx.strokeStyle = '#d7ccc8'; ctx.lineWidth = 3;
         ctx.strokeRect(h.x, h.y, h.w, h.h);
 
-        // Techo / Detalle superior
-        ctx.fillStyle = '#b71c1c';
+        ctx.fillStyle = h.id === 'house_bar' ? '#ff1744' : '#b71c1c';
         ctx.fillRect(h.x - 10, h.y - 20, h.w + 20, 25);
         ctx.strokeStyle = '#fff'; ctx.strokeRect(h.x - 10, h.y - 20, h.w + 20, 25);
 
-        // Nombre de la propiedad
         ctx.fillStyle = '#fff'; ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
         ctx.fillText(h.name, h.x + h.w / 2, h.y - 35);
         ctx.fillText(h.furniture, h.x + h.w / 2, h.y + 45);
 
-        // Ventanas decorativas
         ctx.fillStyle = '#81d4fa';
-        ctx.fillRect(h.x + 40, h.y + 70, 40, 50);
-        ctx.fillRect(h.x + h.w - 80, h.y + 70, 40, 50);
+        ctx.fillRect(h.x + 30, h.y + 70, 35, 45);
+        ctx.fillRect(h.x + h.w - 65, h.y + 70, 35, 45);
         ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
-        ctx.strokeRect(h.x + 40, h.y + 70, 40, 50);
-        ctx.strokeRect(h.x + h.w - 80, h.y + 70, 40, 50);
+        ctx.strokeRect(h.x + 30, h.y + 70, 35, 45);
+        ctx.strokeRect(h.x + h.w - 65, h.y + 70, 35, 45);
 
-        // Puerta de entrada (Portal)
         ctx.fillStyle = '#ffeb3b'; ctx.fillRect(h.doorX - 22, h.doorY - 6, 44, 12);
         ctx.fillStyle = '#000'; ctx.font = '10px monospace'; ctx.fillText("🚪 ENTRANCE", h.doorX, h.doorY - 15);
       });
 
-      // Dibujar Árboles (Naturaleza del vecindario)
+      // Árboles
       sceneryTrees.forEach(t => {
-        // Sombra del árbol
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.beginPath(); ctx.arc(t.x + 4, t.y + 6, t.r, 0, Math.PI * 2); ctx.fill();
-        // Tronco
         ctx.fillStyle = '#5d4037';
         ctx.fillRect(t.x - 4, t.y, 8, 14);
-        // Follaje verde frondoso
         ctx.fillStyle = '#2e7d32';
         ctx.beginPath(); ctx.arc(t.x, t.y - 6, t.r, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#4caf50'; // Brillo superior
+        ctx.fillStyle = '#4caf50';
         ctx.beginPath(); ctx.arc(t.x - 4, t.y - 10, t.r * 0.6, 0, Math.PI * 2); ctx.fill();
       });
 
-      // Farolas de luz en las esquinas
+      // Farolas
       streetLights.forEach(l => {
         ctx.fillStyle = '#78909c';
         ctx.fillRect(l.x - 3, l.y - 25, 6, 30);
-        ctx.fillStyle = '#fff176'; // Luz brillante superior
+        ctx.fillStyle = '#fff176';
         ctx.beginPath(); ctx.arc(l.x, l.y - 25, 6, 0, Math.PI * 2); ctx.fill();
       });
 
-      // Nubes flotantes en el cielo del vecindario
+      // Nubes
       ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
       clouds.forEach(c => {
         ctx.beginPath();
@@ -862,14 +884,14 @@
         ctx.fill();
       });
 
-      // Vehículos en el mapa
+      // Vehículos
       vehicles.forEach(v => {
         if (v.location === 'world') {
           ctx.font = '24px monospace'; ctx.textAlign = 'center'; ctx.fillText(v.icon, v.x, v.y);
         }
       });
 
-      // Monedas coleccionables
+      // Monedas
       mapCoins.forEach(coin => {
         if (coin.active) {
           ctx.font = '16px monospace'; ctx.textAlign = 'center';
@@ -879,14 +901,13 @@
     }
 
     function drawHouseInterior() {
-      ctx.fillStyle = '#3e2723'; ctx.fillRect(100, 100, 600, 400); // Piso interior madera
+      ctx.fillStyle = '#3e2723'; ctx.fillRect(100, 100, 600, 400);
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.strokeRect(100, 100, 600, 400);
       
-      // Alfombra central
       ctx.fillStyle = '#4e342e'; ctx.fillRect(250, 200, 300, 200);
 
       ctx.fillStyle = '#0f0'; ctx.fillRect(350, 490, 100, 10);
-      ctx.fillStyle = '#fff'; ctx.font = '12px monospace'; ctx.textAlign = 'center'; ctx.fillText("EXIT TO WORLD", 400, 480);
+      ctx.fillStyle = '#fff'; ctx.font = '12px monospace'; ctx.textAlign = 'center'; ctx.fillText("EXIT TO CITY", 400, 480);
       ctx.strokeRect(250, 200, 300, 100);
       let houseObj = houses.find(h => h.id === localPlayer.location);
       ctx.fillText(houseObj ? houseObj.furniture : '🛋️ Interior', 400, 255);
