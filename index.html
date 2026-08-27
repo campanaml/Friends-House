@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neighborhood World - Multiplayer Game (v1.7.2)</title>
+  <title>Neighborhood World - Multiplayer Game (v1.8.0)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
@@ -48,11 +48,11 @@
     .game-modal {
       display: none; position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -50%); background: #111; border: 2px solid #fff;
-      padding: 15px; width: 300px; z-index: 20; color: #fff;
+      padding: 15px; width: 340px; z-index: 20; color: #fff;
     }
     .game-modal h3 { border-bottom: 1px solid #fff; padding-bottom: 5px; margin-bottom: 10px; }
     .item-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 11px; }
-    .item-row button { background: #000; color: #fff; border: 1px solid #fff; padding: 2px 8px; cursor: pointer; }
+    .item-row button { background: #000; color: #fff; border: 1px solid #fff; padding: 4px 8px; cursor: pointer; }
     .item-row button:hover { background: #fff; color: #000; }
 
     /* Chat Container */
@@ -96,11 +96,10 @@
 </head>
 <body>
 
-  <!-- Modal de Setup Inicial -->
   <div id="setup-modal">
     <div class="setup-box">
       <h2 style="text-align:center;">ENTER NEIGHBORHOOD</h2>
-      <div style="font-size: 10px; text-align: center; color: #888;">BUILD: v1.7.2</div>
+      <div style="font-size: 10px; text-align: center; color: #888;">BUILD: v1.8.0</div>
       <input type="text" id="username-input" placeholder="Enter Username..." maxlength="12">
       <input type="text" id="world-id-input" placeholder="World ID (Default: main-town)">
       <select id="avatar-select">
@@ -118,10 +117,9 @@
     </div>
   </div>
 
-  <!-- Contenedor Principal del Juego -->
   <div id="game-container">
     <div id="hud">
-      <div>BUILD: <span style="color:#0f0;">v1.7.2</span></div>
+      <div>BUILD: <span style="color:#0f0;">v1.8.0</span></div>
       <div>ROOM: <span id="display-room-code">MAIN-TOWN</span></div>
       <div>STATUS: <span id="status-tag" style="color:#0f0;">CONNECTING...</span></div>
       <div>LOCATION: <span id="location-tag">HOME</span></div>
@@ -140,21 +138,18 @@
 
     <div id="notification-zone"></div>
 
-    <!-- Tienda -->
     <div id="shop-modal" class="game-modal">
       <h3>SHOP</h3>
       <div id="shop-item-list"></div>
       <button onclick="toggleShop()" style="width:100%; margin-top:10px; background:#000; color:#fff; border:1px solid #fff; padding:4px; cursor:pointer;">CLOSE</button>
     </div>
 
-    <!-- Inventario -->
     <div id="inventory-modal" class="game-modal">
       <h3>BACKPACK</h3>
       <div id="inventory-item-list"></div>
       <button onclick="toggleInventory()" style="width:100%; margin-top:10px; background:#000; color:#fff; border:1px solid #fff; padding:4px; cursor:pointer;">CLOSE</button>
     </div>
 
-    <!-- Chat Base -->
     <div id="chat-container">
       <div id="chat-header" onclick="toggleChat()">
         <span>WORLD CHAT</span>
@@ -166,7 +161,6 @@
       </div>
     </div>
 
-    <!-- D-Pad Móvil -->
     <div id="mobile-controls">
       <div class="dpad-row"><div class="dpad-btn" id="btn-up">▲</div></div>
       <div class="dpad-row">
@@ -181,7 +175,7 @@
   </div>
 
   <script>
-    const GAME_VERSION = "1.7.2";
+    const GAME_VERSION = "1.8.0";
     const WORLD_WIDTH = 2400;
     const WORLD_HEIGHT = 1600;
     const PLAYER_TIMEOUT_MS = 10000;
@@ -222,6 +216,8 @@
       coins: 100,
       inventory: [],
       equippedHat: null,
+      isMounted: false,
+      hasAura: false,
       vehicle: null,
       isMoving: false,
       dir: 'down'
@@ -261,83 +257,35 @@
       { id: 5, x: 1700, y: 900, active: true }
     ];
 
+    // Nueva Lista de Items
     let shopItems = [
-      { id: 'item_hat', name: 'Party Hat 🎉', price: 30, type: 'hat' },
-      { id: 'item_speed', name: 'Speed Boost ⚡', price: 50, type: 'buff' }
+      { id: 'item_sunglasses', name: 'Cool Shades 😎', price: 20, type: 'hat' },
+      { id: 'item_crown', name: 'Golden Crown 👑', price: 250, type: 'hat' },
+      { id: 'item_energy', name: 'Energy Drink ⚡', price: 15, type: 'consumable' },
+      { id: 'item_teleport', name: 'Home Teleport 🛸', price: 50, type: 'consumable' },
+      { id: 'item_hoverboard', name: 'Hoverboard 🛹', price: 150, type: 'mount' }
     ];
 
-    // Audio SFX sintético
     let audioCtx = null;
-    function initAudio() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    function playCoinSFX() {
+    function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    
+    // SFX Helpers
+    function playTone(freq, type, duration, vol) {
       if (!audioCtx) return;
       let osc = audioCtx.createOscillator();
       let gain = audioCtx.createGain();
-      osc.frequency.setValueAtTime(987.77, audioCtx.currentTime);
-      osc.frequency.setValueAtTime(1318.51, audioCtx.currentTime + 0.08);
-      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+      osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
       osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.start(); osc.stop(audioCtx.currentTime + 0.25);
+      osc.start(); osc.stop(audioCtx.currentTime + duration);
     }
-    function playFootstepSFX() {
-      if (!audioCtx) return;
-      let osc = audioCtx.createOscillator();
-      let gain = audioCtx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(120, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
-      osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.start(); osc.stop(audioCtx.currentTime + 0.05);
-    }
-    function playVehicleSFX() {
-      if (!audioCtx) return;
-      let osc = audioCtx.createOscillator();
-      let gain = audioCtx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(60, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
-      osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.start(); osc.stop(audioCtx.currentTime + 0.08);
-    }
-    function playDoorSFX() {
-      if (!audioCtx) return;
-      let osc = audioCtx.createOscillator();
-      let gain = audioCtx.createGain();
-      osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.15);
-      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
-      osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.start(); osc.stop(audioCtx.currentTime + 0.15);
-    }
-    function playChatChime() {
-      if (!audioCtx) return;
-      let osc = audioCtx.createOscillator();
-      let gain = audioCtx.createGain();
-      osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
-      osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.start(); osc.stop(audioCtx.currentTime + 0.15);
-    }
-    function playEquipSFX() {
-      if (!audioCtx) return;
-      let osc = audioCtx.createOscillator();
-      let gain = audioCtx.createGain();
-      osc.frequency.setValueAtTime(440, audioCtx.currentTime);
-      osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1);
-      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
-      osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.start(); osc.stop(audioCtx.currentTime + 0.2);
-    }
+    function playCoinSFX() { playTone(987, 'sine', 0.2, 0.1); }
+    function playFootstepSFX() { playTone(120, 'triangle', 0.05, 0.02); }
+    function playVehicleSFX() { playTone(60, 'sawtooth', 0.08, 0.02); }
+    function playEquipSFX() { playTone(880, 'sine', 0.15, 0.08); }
+    function playPowerupSFX() { playTone(440, 'square', 0.3, 0.05); }
 
-    // UI Utilities
     function showNotification(msg, type = 'normal') {
       const zone = document.getElementById('notification-zone');
       const toast = document.createElement('div');
@@ -366,10 +314,7 @@
       shopItems.forEach(item => {
         const div = document.createElement('div');
         div.className = 'item-row';
-        div.innerHTML = `
-          <span>${item.name} ($${item.price})</span>
-          <button onclick="buyItem('${item.id}')">BUY</button>
-        `;
+        div.innerHTML = `<span>${item.name} ($${item.price})</span><button onclick="buyItem('${item.id}')">BUY</button>`;
         container.appendChild(div);
       });
     }
@@ -383,9 +328,7 @@
         savePlayerData();
         playCoinSFX();
         showNotification(`Purchased ${item.name}!`, 'success');
-        if (document.getElementById('inventory-modal').style.display === 'block') {
-          renderInventory();
-        }
+        if (document.getElementById('inventory-modal').style.display === 'block') renderInventory();
       } else {
         showNotification("Not enough coins!", 'error');
       }
@@ -408,19 +351,19 @@
       localPlayer.inventory.forEach((item, index) => {
         const div = document.createElement('div');
         div.className = 'item-row';
-
-        let actionBtnHTML = '';
+        let btnHTML = '';
+        
         if (item.type === 'hat') {
-          const isEquipped = localPlayer.equippedHat === item.id;
-          actionBtnHTML = `<button onclick="toggleEquipHat('${item.id}')">${isEquipped ? 'UNEQUIP' : 'EQUIP'}</button>`;
-        } else if (item.type === 'buff') {
-          actionBtnHTML = `<button onclick="useBuffItem(${index})">USE</button>`;
+          const isEq = localPlayer.equippedHat === item.id;
+          btnHTML = `<button onclick="toggleEquipHat('${item.id}')">${isEq ? 'UNEQUIP' : 'EQUIP'}</button>`;
+        } else if (item.type === 'mount') {
+          const isMt = localPlayer.isMounted;
+          btnHTML = `<button onclick="toggleMount()">${isMt ? 'DISMOUNT' : 'MOUNT'}</button>`;
+        } else {
+          btnHTML = `<button onclick="useItem(${index})">USE</button>`;
         }
 
-        div.innerHTML = `
-          <span>${item.name}</span>
-          ${actionBtnHTML}
-        `;
+        div.innerHTML = `<span>${item.name}</span>${btnHTML}`;
         container.appendChild(div);
       });
     }
@@ -439,20 +382,42 @@
       broadcast({ type: 'move', player: localPlayer, vehicles });
     }
 
-    function useBuffItem(index) {
+    function toggleMount() {
+      localPlayer.isMounted = !localPlayer.isMounted;
+      if (localPlayer.isMounted) {
+        showNotification("Hoverboard Equipped!", 'success');
+        playEquipSFX();
+      }
+      renderInventory();
+      broadcast({ type: 'move', player: localPlayer, vehicles });
+    }
+
+    function useItem(index) {
       const item = localPlayer.inventory[index];
       if (!item) return;
 
-      if (item.id === 'item_speed') {
-        localPlayer.speed += 2;
-        showNotification("Speed Boost Activated! (+2 Speed)", 'success');
-        playEquipSFX();
+      if (item.id === 'item_energy') {
+        localPlayer.hasAura = true;
+        showNotification("Energy Boost! (+Speed)", 'success');
+        playPowerupSFX();
+        setTimeout(() => {
+          localPlayer.hasAura = false;
+          broadcast({ type: 'move', player: localPlayer, vehicles });
+        }, 8000);
+      } else if (item.id === 'item_teleport') {
+        localPlayer.location = `house_${localPlayer.avatar}`;
+        localPlayer.x = 400; localPlayer.y = 450;
+        let homeObj = houses.find(h => h.id === localPlayer.location);
+        document.getElementById('location-tag').innerText = homeObj ? homeObj.name.toUpperCase() : "HOME";
+        showNotification("Teleported Home!", 'success');
+        playPowerupSFX();
       }
 
       localPlayer.inventory.splice(index, 1);
       savePlayerData();
       renderInventory();
       broadcast({ type: 'move', player: localPlayer, vehicles });
+      updatePlayerList();
     }
 
     function toggleChat() {
@@ -474,9 +439,9 @@
         if (v) v.driver = null;
         localPlayer.vehicle = null;
       }
+      localPlayer.isMounted = false;
       localPlayer.location = `house_${localPlayer.avatar}`;
-      localPlayer.x = 400;
-      localPlayer.y = 450;
+      localPlayer.x = 400; localPlayer.y = 450;
       let homeObj = houses.find(h => h.id === localPlayer.location);
       document.getElementById('location-tag').innerText = homeObj ? homeObj.name.toUpperCase() : "HOME";
       broadcast({ type: 'move', player: localPlayer, vehicles });
@@ -485,7 +450,6 @@
 
     function enterHouse() {
       initAudio();
-      
       const customName = document.getElementById('username-input').value.trim();
       selectedAvatar = document.getElementById('avatar-select').value;
       selectedColor = document.getElementById('color-select').value;
@@ -498,8 +462,6 @@
       localPlayer.color = selectedColor;
       localPlayer.id = Math.random().toString(36).substring(2, 7);
       localPlayer.location = `house_${selectedAvatar}`;
-      localPlayer.x = 400;
-      localPlayer.y = 450;
 
       const savedCoins = localStorage.getItem(`nh_coins_${localPlayer.name}`);
       localPlayer.coins = savedCoins !== null ? parseInt(savedCoins, 10) : 100;
@@ -507,20 +469,12 @@
       const savedInv = localStorage.getItem(`nh_inventory_${localPlayer.name}`);
       if (savedInv) {
         try { localPlayer.inventory = JSON.parse(savedInv); } catch(e) { localPlayer.inventory = []; }
-      } else {
-        localPlayer.inventory = [];
       }
 
       const savedHat = localStorage.getItem(`nh_hat_${localPlayer.name}`);
       if (savedHat) localPlayer.equippedHat = savedHat;
 
       savePlayerData();
-
-      localStorage.setItem('nh_name', localPlayer.name);
-      localStorage.setItem('nh_avatar', selectedAvatar);
-      localStorage.setItem('nh_color', selectedColor);
-      localStorage.setItem('nh_room', activeWorldRoom);
-
       let homeObj = houses.find(h => h.id === localPlayer.location);
       document.getElementById('location-tag').innerText = homeObj ? homeObj.name.toUpperCase() : "HOME";
 
@@ -556,18 +510,13 @@
     }
 
     function initMultiplayerGlobal() {
-      const hostRoomId = `nh-${activeWorldRoom}-host-v172`;
-      const joinDelay = Math.floor(Math.random() * 300);
-
+      const hostRoomId = `nh-${activeWorldRoom}-host-v180`;
       setTimeout(() => {
         peer = new Peer(hostRoomId);
-
         peer.on('open', () => {
           isHost = true;
           document.getElementById('status-tag').innerText = "HOSTING WORLD";
-          showNotification("You are hosting this world", "success");
         });
-
         peer.on('error', (err) => {
           if (err.type === 'unavailable-id') {
             peer = new Peer();
@@ -578,9 +527,8 @@
             peer.on('connection', (conn) => bindConnectionEvents(conn));
           }
         });
-
         peer.on('connection', (conn) => bindConnectionEvents(conn));
-      }, joinDelay);
+      }, Math.floor(Math.random() * 300));
     }
 
     function connectToHost(hostRoomId) {
@@ -598,49 +546,34 @@
         if (data.type === 'leave') {
           delete players[data.id];
           updatePlayerList();
-
           if (isHost) {
-            for (let pId in connections) {
-              if (pId !== conn.peer && connections[pId].open) connections[pId].send(data);
-            }
+            for (let pId in connections) if (pId !== conn.peer && connections[pId].open) connections[pId].send(data);
           }
         } else if (data.type === 'sync' || data.type === 'move') {
           data.player.lastSeen = Date.now();
           players[data.player.id] = data.player;
           if (data.vehicles) vehicles = data.vehicles;
           
-          if (data.type === 'sync' && !isHost) {
-            conn.send({ type: 'move', player: localPlayer, vehicles, version: GAME_VERSION });
-          }
+          if (data.type === 'sync' && !isHost) conn.send({ type: 'move', player: localPlayer, vehicles });
 
           if (isHost) {
-            for (let pId in connections) {
-              if (pId !== conn.peer && connections[pId].open) {
-                connections[pId].send(data);
-              }
-            }
+            for (let pId in connections) if (pId !== conn.peer && connections[pId].open) connections[pId].send(data);
           }
         } else if (data.type === 'chat') {
           let sameLocation = (data.location === localPlayer.location);
           let dist = Math.hypot(localPlayer.x - data.x, localPlayer.y - data.y);
           let isNear = sameLocation && dist < 500;
           let text = isNear ? data.message : "...[distant chat]...";
-          
           addChatMessage(data.name, text);
           if (players[data.id] && sameLocation) setSpeechBubble(players[data.id], data.message);
-          playChatChime();
-
+          
           if (isHost) {
-            for (let pId in connections) {
-              if (pId !== conn.peer && connections[pId].open) connections[pId].send(data);
-            }
+            for (let pId in connections) if (pId !== conn.peer && connections[pId].open) connections[pId].send(data);
           }
         } else if (data.type === 'emote') {
           if (players[data.id]) setEmote(players[data.id], data.emote);
           if (isHost) {
-            for (let pId in connections) {
-              if (pId !== conn.peer && connections[pId].open) connections[pId].send(data);
-            }
+            for (let pId in connections) if (pId !== conn.peer && connections[pId].open) connections[pId].send(data);
           }
         }
         updatePlayerList();
@@ -663,11 +596,8 @@
       const now = Date.now();
       let changed = false;
       for (let id in players) {
-        if (id !== localPlayer.id) {
-          if (players[id].lastSeen && (now - players[id].lastSeen > PLAYER_TIMEOUT_MS)) {
-            delete players[id];
-            changed = true;
-          }
+        if (id !== localPlayer.id && players[id].lastSeen && (now - players[id].lastSeen > PLAYER_TIMEOUT_MS)) {
+          delete players[id]; changed = true;
         }
       }
       if (changed) updatePlayerList();
@@ -687,9 +617,9 @@
     window.addEventListener('keydown', e => {
       if (document.activeElement === document.getElementById('chat-input')) return;
       keys[e.key] = true;
-      if (e.key === 'e' || e.key === 'E') triggerInteraction();
-      if (e.key === 'b' || e.key === 'B') toggleShop();
-      if (e.key === 'i' || e.key === 'I') toggleInventory();
+      if (e.key.toLowerCase() === 'e') triggerInteraction();
+      if (e.key.toLowerCase() === 'b') toggleShop();
+      if (e.key.toLowerCase() === 'i') toggleInventory();
     });
     window.addEventListener('keyup', e => {
       if (document.activeElement === document.getElementById('chat-input')) return;
@@ -702,63 +632,45 @@
         const msg = sanitizeText(chatInput.value.trim());
         addChatMessage(localPlayer.name, msg);
         setSpeechBubble(localPlayer, msg);
-        broadcast({ 
-          type: 'chat', id: localPlayer.id, name: localPlayer.name, 
-          message: msg, x: localPlayer.x, y: localPlayer.y, location: localPlayer.location 
-        });
-        chatInput.value = '';
-        chatInput.blur();
+        broadcast({ type: 'chat', id: localPlayer.id, name: localPlayer.name, message: msg, x: localPlayer.x, y: localPlayer.y, location: localPlayer.location });
+        chatInput.value = ''; chatInput.blur();
       }
     });
 
     function setSpeechBubble(p, text) { p.bubble = { text, timer: Date.now() + 4500 }; }
     function sendEmote(emote) { setEmote(localPlayer, emote); broadcast({ type: 'emote', id: localPlayer.id, emote }); }
     function setEmote(p, emote) { p.emote = { symbol: emote, timer: Date.now() + 3000 }; }
-
     function addChatMessage(sender, text) {
       const logs = document.getElementById('chat-logs');
       const msgDiv = document.createElement('div');
       msgDiv.innerHTML = `<strong>${sender}:</strong> ${text}`;
-      logs.appendChild(msgDiv);
-      logs.scrollTop = logs.scrollHeight;
+      logs.appendChild(msgDiv); logs.scrollTop = logs.scrollHeight;
     }
 
     function triggerInteraction() {
       if (localPlayer.location === 'world') {
         if (localPlayer.vehicle) {
           let v = vehicles.find(item => item.id === localPlayer.vehicle);
-          if (v) {
-            v.driver = null;
-            localPlayer.x = v.x + 40;
-            localPlayer.y = v.y + 40;
-          }
+          if (v) { v.driver = null; localPlayer.x = v.x + 40; localPlayer.y = v.y + 40; }
           localPlayer.vehicle = null;
           broadcast({ type: 'move', player: localPlayer, vehicles });
           return;
         }
-
         vehicles.forEach(v => {
           if (!v.driver && Math.hypot(localPlayer.x - v.x, localPlayer.y - v.y) < 50) {
-            v.driver = localPlayer.id;
-            localPlayer.vehicle = v.id;
+            v.driver = localPlayer.id; localPlayer.vehicle = v.id; localPlayer.isMounted = false;
           }
         });
-
         houses.forEach(h => {
           if (Math.hypot(localPlayer.x - h.doorX, localPlayer.y - h.doorY) < 40) {
-            localPlayer.location = h.id;
-            localPlayer.x = 400; localPlayer.y = 450;
-            playDoorSFX();
+            localPlayer.location = h.id; localPlayer.x = 400; localPlayer.y = 450;
             document.getElementById('location-tag').innerText = h.name.toUpperCase();
           }
         });
       } else {
         if (Math.hypot(localPlayer.x - 400, localPlayer.y - 480) < 50) {
           let h = houses.find(item => item.id === localPlayer.location);
-          localPlayer.location = 'world';
-          localPlayer.x = h ? h.exitX : 300;
-          localPlayer.y = h ? h.exitY : 430;
-          playDoorSFX();
+          localPlayer.location = 'world'; localPlayer.x = h ? h.exitX : 300; localPlayer.y = h ? h.exitY : 430;
           document.getElementById('location-tag').innerText = "WORLD";
         }
       }
@@ -771,7 +683,6 @@
         let v = vehicles.find(item => item.id === localPlayer.vehicle);
         if (v && v.type === 'plane') return false;
       }
-
       let solids = localPlayer.location === 'world' ? outdoorSolids : houseSolids;
       for (let s of solids) {
         let closestX = Math.max(s.x, Math.min(newX, s.x + s.w));
@@ -785,11 +696,8 @@
       if (localPlayer.location !== 'world') return;
       mapCoins.forEach(coin => {
         if (coin.active && Math.hypot(localPlayer.x - coin.x, localPlayer.y - coin.y) < 25) {
-          coin.active = false;
-          localPlayer.coins += 10;
-          savePlayerData();
-          playCoinSFX();
-          showNotification("+$10 Coins!", 'success');
+          coin.active = false; localPlayer.coins += 10;
+          savePlayerData(); playCoinSFX(); showNotification("+$10 Coins!", 'success');
           setTimeout(() => {
             coin.x = Math.floor(Math.random() * (WORLD_WIDTH - 200)) + 100;
             coin.y = Math.floor(Math.random() * (WORLD_HEIGHT - 200)) + 100;
@@ -804,14 +712,15 @@
       cleanupGhostPlayers();
 
       let currentSpeed = localPlayer.speed;
-
+      if (localPlayer.hasAura) currentSpeed += 3;
+      if (localPlayer.isMounted) currentSpeed += 2;
+      
       if (localPlayer.vehicle) {
         let v = vehicles.find(item => item.id === localPlayer.vehicle);
         if (v) currentSpeed = v.speed;
       }
 
-      let nextX = localPlayer.x;
-      let nextY = localPlayer.y;
+      let nextX = localPlayer.x; let nextY = localPlayer.y;
       localPlayer.isMoving = false;
 
       if (keys['ArrowUp'] || keys['w']) { nextY -= currentSpeed; localPlayer.dir = 'up'; localPlayer.isMoving = true; }
@@ -839,7 +748,6 @@
 
     function drawWorld() {
       ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff'; ctx.lineWidth = 2;
-
       ctx.strokeStyle = '#333'; ctx.lineWidth = 60; ctx.beginPath();
       ctx.moveTo(0, 500); ctx.lineTo(WORLD_WIDTH, 500);
       ctx.moveTo(800, 0); ctx.lineTo(800, WORLD_HEIGHT);
@@ -854,16 +762,13 @@
         ctx.strokeStyle = '#fff';
         ctx.strokeRect(h.x, h.y, h.w, h.h);
         ctx.fillText(h.name, h.x + 150, h.y + 150);
-        
-        ctx.fillStyle = '#0f0';
-        ctx.fillRect(h.doorX - 20, h.doorY - 5, 40, 10);
+        ctx.fillStyle = '#0f0'; ctx.fillRect(h.doorX - 20, h.doorY - 5, 40, 10);
         ctx.fillStyle = '#fff';
       });
 
       vehicles.forEach(v => {
         if (v.location === 'world') {
-          ctx.font = '24px monospace'; ctx.textAlign = 'center';
-          ctx.fillText(v.icon, v.x, v.y);
+          ctx.font = '24px monospace'; ctx.textAlign = 'center'; ctx.fillText(v.icon, v.x, v.y);
         }
       });
 
@@ -876,136 +781,120 @@
     }
 
     function drawHouseInterior() {
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
-      ctx.strokeRect(100, 100, 600, 400);
-
-      ctx.fillStyle = '#0f0';
-      ctx.fillRect(350, 490, 100, 10);
-      ctx.fillStyle = '#fff'; ctx.font = '12px monospace'; ctx.textAlign = 'center';
-      ctx.fillText("EXIT TO WORLD", 400, 480);
-
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.strokeRect(100, 100, 600, 400);
+      ctx.fillStyle = '#0f0'; ctx.fillRect(350, 490, 100, 10);
+      ctx.fillStyle = '#fff'; ctx.font = '12px monospace'; ctx.textAlign = 'center'; ctx.fillText("EXIT TO WORLD", 400, 480);
       ctx.strokeRect(250, 200, 300, 100);
       let houseObj = houses.find(h => h.id === localPlayer.location);
       ctx.fillText(houseObj ? houseObj.furniture : '🛋️ Interior', 400, 255);
     }
 
     function drawAvatar(p) {
-      ctx.fillStyle = p.color || '#ffffff';
-      ctx.strokeStyle = p.color || '#ffffff';
-      ctx.lineWidth = 2;
+      ctx.save();
+      
+      // Dibujar Efecto de Aura
+      if (p.hasAura) {
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#0ff';
+      }
 
-      let bobY = (p.isMoving && !p.vehicle) ? Math.sin(animFrame * 0.3) * 3 : 0;
+      let bobY = (p.isMoving && !p.vehicle && !p.isMounted) ? Math.sin(animFrame * 0.3) * 3 : 0;
       let renderY = p.y + bobY;
 
       if (!p.vehicle) {
+        
+        // Dibujar Hoverboard (Montura)
+        if (p.isMounted) {
+          ctx.fillStyle = '#ff00ff'; // Tabla neon
+          ctx.fillRect(p.x - 14, renderY + 8, 28, 6);
+          ctx.fillStyle = '#0ff'; // Propulsores
+          ctx.fillRect(p.x - 10, renderY + 14, 6, 2);
+          ctx.fillRect(p.x + 4, renderY + 14, 6, 2);
+          renderY -= 5; // Eleva al personaje un poco
+        }
+
+        ctx.fillStyle = p.color || '#ffffff';
+        ctx.strokeStyle = p.color || '#ffffff';
+        ctx.lineWidth = 2;
+        
+        // Base Avatar
         ctx.beginPath();
         if (p.avatar === 'martin') {
           ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
-          ctx.rect(p.x - 8, renderY + 6, 16, 12);
-          ctx.stroke();
+          ctx.rect(p.x - 8, renderY + 6, 16, 12); ctx.stroke();
           ctx.fillRect(p.x - 6, renderY - 6, 12, 4);
         } else if (p.avatar === 'gaby') {
           ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
-          ctx.rect(p.x - 8, renderY + 6, 16, 12);
-          ctx.stroke();
-          ctx.fillRect(p.x - 12, renderY - 8, 4, 8);
-          ctx.fillRect(p.x + 8, renderY - 8, 4, 8);
+          ctx.rect(p.x - 8, renderY + 6, 16, 12); ctx.stroke();
+          ctx.fillRect(p.x - 12, renderY - 8, 4, 8); ctx.fillRect(p.x + 8, renderY - 8, 4, 8);
         } else {
           ctx.arc(p.x, renderY - 4, 10, 0, Math.PI * 2);
-          ctx.rect(p.x - 8, renderY + 6, 16, 12);
-          ctx.stroke();
+          ctx.rect(p.x - 8, renderY + 6, 16, 12); ctx.stroke();
           ctx.fillRect(p.x - 10, renderY - 12, 16, 3);
         }
 
-        if (p.equippedHat === 'item_hat') {
-          ctx.font = '16px monospace';
-          ctx.textAlign = 'center';
-          ctx.fillText('🥳', p.x, renderY - 15);
+        // Cosmetics / Hats Custom Rendering
+        if (p.equippedHat === 'item_sunglasses') {
+          ctx.fillStyle = '#000';
+          ctx.fillRect(p.x - 8, renderY - 6, 6, 4);
+          ctx.fillRect(p.x + 2, renderY - 6, 6, 4);
+          ctx.beginPath(); ctx.moveTo(p.x - 2, renderY - 4); ctx.lineTo(p.x + 2, renderY - 4); ctx.stroke();
+        } else if (p.equippedHat === 'item_crown') {
+          ctx.fillStyle = '#ffd700';
+          ctx.beginPath();
+          ctx.moveTo(p.x - 8, renderY - 14);
+          ctx.lineTo(p.x - 10, renderY - 24);
+          ctx.lineTo(p.x - 4, renderY - 18);
+          ctx.lineTo(p.x, renderY - 26);
+          ctx.lineTo(p.x + 4, renderY - 18);
+          ctx.lineTo(p.x + 10, renderY - 24);
+          ctx.lineTo(p.x + 8, renderY - 14);
+          ctx.closePath();
+          ctx.fill();
         }
       }
 
+      ctx.restore(); // Limpiar sombras/aura para el texto
+      
       ctx.fillStyle = '#ffffff';
       ctx.font = '11px monospace'; 
       ctx.textAlign = 'center';
-      ctx.fillText(p.name, p.x, renderY + 26);
+      ctx.fillText(p.name, p.x, p.y + 28);
 
       if (p.bubble && Date.now() < p.bubble.timer) {
-        const maxLen = 14;
-        let displayMsg = p.bubble.text;
-        if (displayMsg.length > maxLen) {
-          displayMsg = displayMsg.substring(0, maxLen) + '...';
-        }
-
+        let displayMsg = p.bubble.text.length > 14 ? p.bubble.text.substring(0, 14) + '...' : p.bubble.text;
         ctx.font = '10px monospace';
-        let textWidth = ctx.measureText(displayMsg).width;
-        let boxWidth = Math.max(textWidth + 12, 28);
-        let boxHeight = 18;
-        let bubbleX = p.x - boxWidth / 2;
-        let bubbleY = renderY - 32;
+        let boxWidth = Math.max(ctx.measureText(displayMsg).width + 12, 28);
+        let bubbleX = p.x - boxWidth / 2; let bubbleY = renderY - 32;
 
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(bubbleX, bubbleY, boxWidth, boxHeight);
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(bubbleX, bubbleY, boxWidth, boxHeight);
-
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.moveTo(p.x - 4, bubbleY + boxHeight);
-        ctx.lineTo(p.x + 4, bubbleY + boxHeight);
-        ctx.lineTo(p.x, bubbleY + boxHeight + 4);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.strokeStyle = '#000000';
-        ctx.beginPath();
-        ctx.moveTo(p.x - 4, bubbleY + boxHeight);
-        ctx.lineTo(p.x, bubbleY + boxHeight + 4);
-        ctx.lineTo(p.x + 4, bubbleY + boxHeight);
-        ctx.stroke();
-
-        ctx.fillStyle = '#000000';
-        ctx.textAlign = 'center';
-        ctx.fillText(displayMsg, p.x, bubbleY + 13);
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(bubbleX, bubbleY, boxWidth, 18);
+        ctx.strokeStyle = '#000'; ctx.strokeRect(bubbleX, bubbleY, boxWidth, 18);
+        ctx.beginPath(); ctx.moveTo(p.x - 4, bubbleY + 18); ctx.lineTo(p.x + 4, bubbleY + 18); ctx.lineTo(p.x, bubbleY + 22); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#000'; ctx.fillText(displayMsg, p.x, bubbleY + 13);
       }
 
       if (p.emote && Date.now() < p.emote.timer) {
-        ctx.font = '16px monospace'; 
-        ctx.textAlign = 'center';
-        ctx.fillText(p.emote.symbol, p.x, renderY - 40);
+        ctx.font = '16px monospace'; ctx.fillText(p.emote.symbol, p.x, renderY - 40);
       }
     }
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
-
       if (localPlayer.location === 'world') {
         let camX = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, localPlayer.x - canvas.width / 2));
         let camY = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, localPlayer.y - canvas.height / 2));
         ctx.translate(-camX, -camY);
-
         drawWorld();
       } else {
         drawHouseInterior();
       }
-
       drawAvatar(localPlayer);
-
-      for (let id in players) {
-        if (id !== localPlayer.id && players[id].location === localPlayer.location) {
-          drawAvatar(players[id]);
-        }
-      }
-
+      for (let id in players) if (id !== localPlayer.id && players[id].location === localPlayer.location) drawAvatar(players[id]);
       ctx.restore();
     }
 
-    function gameLoop() {
-      update();
-      draw();
-      requestAnimationFrame(gameLoop);
-    }
+    function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
   </script>
 </body>
 </html>
