@@ -3,149 +3,143 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neighborhood World - Mega City PRO (v4.3.0)</title>
+  <title>Neighborhood World - Mega City ULTRA (v4.4.0)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
-    body { background: #000; color: #fff; overflow: hidden; }
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', system-ui, sans-serif; user-select: none; }
+    body { background: #080c14; color: #fff; overflow: hidden; height: 100vh; width: 100vw; }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+    ::-webkit-scrollbar-thumb { background: rgba(0, 255, 204, 0.4); border-radius: 4px; }
+
+    /* Glassmorphism Modal Base */
+    .glass-panel {
+      background: rgba(12, 18, 28, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+    }
 
     #setup-modal {
       position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
+      background: radial-gradient(circle at 50% 30%, #162238 0%, #05080e 100%);
       display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100;
     }
     .setup-box {
-      border: 2px solid #00ffcc; padding: 30px; background: rgba(10, 10, 10, 0.95);
-      display: flex; flex-direction: column; gap: 18px; width: 380px;
-      box-shadow: 0 0 30px rgba(0, 255, 204, 0.25);
-      border-radius: 8px;
+      padding: 36px; display: flex; flex-direction: column; gap: 16px; width: 400px;
+      border: 1px solid rgba(0, 255, 204, 0.3);
+      box-shadow: 0 0 50px rgba(0, 255, 204, 0.15), 0 20px 60px rgba(0,0,0,0.8);
+      animation: setupFloat 6s ease-in-out infinite alternate;
     }
+    @keyframes setupFloat { 0% { transform: translateY(0px); } 100% { transform: translateY(-8px); } }
+
     .setup-box h2 {
-      color: #00ffcc; letter-spacing: 2px; font-size: 20px; text-shadow: 0 0 10px rgba(0,255,204,0.5);
+      color: #00ffcc; letter-spacing: 2px; font-size: 24px; text-align: center;
+      font-weight: 800; text-shadow: 0 0 20px rgba(0,255,204,0.6);
     }
-    .setup-box label {
-      font-size: 10px; color: #aaa; margin-bottom: -12px; text-transform: uppercase;
-    }
+    .setup-box label { font-size: 11px; color: #8a99ad; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: -10px; }
     .setup-box input, .setup-box select {
-      background: #050505; color: #fff; border: 1px solid #444; padding: 12px;
-      font-family: monospace; border-radius: 4px; outline: none; transition: border-color 0.3s;
+      background: rgba(5, 9, 15, 0.8); color: #fff; border: 1px solid rgba(255,255,255,0.15); padding: 12px 14px;
+      border-radius: 10px; outline: none; transition: all 0.25s ease; font-size: 14px;
     }
     .setup-box input:focus, .setup-box select:focus {
-      border-color: #00ffcc; box-shadow: 0 0 8px rgba(0,255,204,0.3);
+      border-color: #00ffcc; box-shadow: 0 0 15px rgba(0,255,204,0.3); background: rgba(5, 9, 15, 0.95);
     }
     .setup-box button {
-      background: #00ffcc; color: #000; border: none; padding: 14px;
-      font-family: monospace; font-weight: bold; cursor: pointer; border-radius: 4px;
-      transition: all 0.2s; margin-top: 5px; letter-spacing: 1px;
+      background: linear-gradient(135deg, #00ffcc 0%, #00b3f0 100%); color: #040910; border: none; padding: 14px;
+      font-weight: 800; cursor: pointer; border-radius: 10px; transition: all 0.25s; margin-top: 8px;
+      letter-spacing: 1.5px; text-transform: uppercase; font-size: 14px;
+      box-shadow: 0 8px 25px rgba(0,255,204,0.3);
     }
-    .setup-box button:hover { background: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.6); }
+    .setup-box button:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,255,204,0.5); filter: brightness(1.1); }
 
     #game-container { display: none; width: 100vw; height: 100vh; position: relative; }
-    canvas { display: block; background: #27ae60; width: 100vw; height: 100vh; }
+    canvas { display: block; background: #1a231c; width: 100vw; height: 100vh; }
 
     #hud {
-      position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.85);
-      border: 1px solid #fff; padding: 10px; z-index: 10; font-size: 12px;
-      display: flex; flex-direction: column; gap: 4px; pointer-events: none;
+      position: absolute; top: 16px; left: 16px; z-index: 10; font-size: 12px;
+      display: flex; flex-direction: column; gap: 6px; pointer-events: none; padding: 14px 18px;
+      font-family: 'JetBrains Mono', monospace; min-width: 220px;
     }
+    #hud div span { font-weight: 700; }
     
     #hud-controls {
-      position: absolute; top: 10px; right: 10px; z-index: 10; display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; max-width: 480px;
+      position: absolute; top: 16px; right: 16px; z-index: 10; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; max-width: 520px;
     }
     #hud-controls button {
-      background: rgba(0,0,0,0.85); color: #fff; border: 1px solid #fff;
-      padding: 6px 10px; font-family: monospace; cursor: pointer;
+      background: rgba(12, 18, 28, 0.8); color: #fff; border: 1px solid rgba(255,255,255,0.15);
+      padding: 10px 14px; font-weight: 700; cursor: pointer; border-radius: 12px; backdrop-filter: blur(12px);
+      transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 6px;
     }
-    #hud-controls button:hover { background: #fff; color: #000; }
+    #hud-controls button:hover { background: rgba(0, 255, 204, 0.2); border-color: #00ffcc; color: #00ffcc; transform: translateY(-2px); }
 
     .game-modal {
-      display: none; position: absolute; top: 50%; left: 50%;
-      transform: translate(-50%, -50%); background: #111; border: 2px solid #fff;
-      padding: 15px; width: 340px; z-index: 20; color: #fff;
-      box-shadow: 0 0 15px rgba(0,0,0,0.8);
+      display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      padding: 20px; width: 360px; z-index: 20; color: #fff;
     }
-    .game-modal h3 { border-bottom: 1px solid #fff; padding-bottom: 5px; margin-bottom: 10px; }
-    .item-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 11px; }
-    .item-row button { background: #000; color: #fff; border: 1px solid #fff; padding: 4px 8px; cursor: pointer; }
-    .item-row button:hover { background: #fff; color: #000; }
+    .game-modal h3 { border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 10px; margin-bottom: 14px; font-size: 16px; letter-spacing: 1px; }
+    .item-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 13px; background: rgba(255,255,255,0.04); padding: 8px 12px; border-radius: 8px; }
+    .item-row button { background: #00ffcc; color: #000; border: none; padding: 6px 12px; font-weight: 700; cursor: pointer; border-radius: 6px; transition: all 0.2s; }
+    .item-row button:hover { background: #fff; box-shadow: 0 0 10px rgba(255,255,255,0.8); }
 
     #chat-container {
-      position: absolute; bottom: 10px; left: 10px; width: 320px;
-      background: rgba(0,0,0,0.85); border: 1px solid #fff; z-index: 10;
+      position: absolute; bottom: 16px; left: 16px; width: 340px; z-index: 10;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     #chat-container.minimized #chat-logs { display: none; }
     #chat-header {
-      background: #222; padding: 5px 10px; cursor: pointer;
-      display: flex; justify-content: space-between; border-bottom: 1px solid #fff;
+      padding: 10px 14px; cursor: pointer; display: flex; justify-content: space-between;
+      font-size: 12px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.1);
     }
-    #chat-logs { height: 130px; overflow-y: auto; padding: 8px; font-size: 11px; display: flex; flex-direction: column; gap: 4px; }
-    #chat-input-box { border-top: 1px solid #fff; display: flex; }
-    #chat-input { background: #000; color: #fff; border: none; padding: 8px; width: 100%; font-family: monospace; }
+    #chat-logs { height: 140px; overflow-y: auto; padding: 10px; font-size: 12px; display: flex; flex-direction: column; gap: 6px; font-family: 'JetBrains Mono', monospace; }
+    #chat-input-box { border-top: 1px solid rgba(255,255,255,0.1); display: flex; }
+    #chat-input { background: rgba(0,0,0,0.3); color: #fff; border: none; padding: 10px 14px; width: 100%; font-size: 12px; outline: none; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; }
 
     #notification-zone {
-      position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
-      z-index: 30; pointer-events: none; display: flex; flex-direction: column; gap: 5px;
+      position: absolute; top: 70px; left: 50%; transform: translateX(-50%);
+      z-index: 30; pointer-events: none; display: flex; flex-direction: column; gap: 8px;
     }
     .toast {
-      background: rgba(0,0,0,0.9); border: 1px solid #fff; padding: 6px 14px;
-      font-size: 11px; text-align: center; box-shadow: 0 0 10px rgba(255,255,255,0.2);
+      padding: 10px 20px; font-size: 12px; text-align: center; font-weight: 700;
+      border-radius: 30px; background: rgba(10,16,26,0.92); border: 1px solid rgba(255,255,255,0.2);
+      backdrop-filter: blur(10px); box-shadow: 0 10px 25px rgba(0,0,0,0.5); animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
-    .toast.success { border-color: #0f0; color: #0f0; }
-    .toast.error { border-color: #f00; color: #f00; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(-10px) scale(0.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    .toast.success { border-color: #00ffcc; color: #00ffcc; text-shadow: 0 0 8px rgba(0,255,204,0.4); }
+    .toast.error { border-color: #ff3366; color: #ff3366; text-shadow: 0 0 8px rgba(255,51,102,0.4); }
 
-    #mobile-controls {
-      display: none; position: absolute; bottom: 20px; right: 20px; z-index: 10;
+    #minimap-wrap {
+      position: absolute; right: 16px; bottom: 16px; width: 230px; padding: 10px; z-index: 12; pointer-events: none;
     }
+    .mini-title { display: flex; justify-content: space-between; padding: 0 2px 6px; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: rgba(255,255,255,0.9); }
+    .mini-title span:last-child { color: #00ffcc; }
+    #minimap { display: block; width: 210px; height: 130px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.15); background: #0c141d; }
+    .mini-legend { display: flex; gap: 10px; justify-content: center; padding-top: 6px; font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.6); }
+    .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; box-shadow: 0 0 6px currentColor; }
+    .dot.me { color: #ffffff; } .dot.other { color: #00b3f0; } .dot.poi { color: #ffd86b; }
+
+    #mobile-controls { display: none; position: absolute; bottom: 24px; right: 24px; z-index: 10; }
     .dpad-row { display: flex; justify-content: center; }
     .dpad-btn {
-      width: 48px; height: 48px; background: rgba(255,255,255,0.2);
-      border: 1px solid #fff; color: #fff; font-size: 18px; display: flex;
-      align-items: center; justify-content: center; user-select: none;
+      width: 52px; height: 52px; background: rgba(12, 18, 28, 0.7); border: 1px solid rgba(255,255,255,0.2);
+      color: #fff; font-size: 20px; display: flex; align-items: center; justify-content: center; user-select: none;
+      border-radius: 14px; backdrop-filter: blur(8px); active:scale(0.95);
     }
     @media (pointer: coarse) { #mobile-controls { display: block; } }
-    /* --- V4.2 VISUAL UPGRADE --- */
-    #hud {
-      background: linear-gradient(135deg, rgba(8,12,18,.88), rgba(8,12,18,.62));
-      border: 1px solid rgba(255,255,255,.18); border-radius: 12px; padding: 11px 13px;
-      box-shadow: 0 10px 30px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.06);
-      backdrop-filter: blur(8px); font-family: system-ui, sans-serif;
-    }
-    #hud > div { letter-spacing: .5px; }
-    #hud-controls { gap: 8px; max-width: 560px; }
-    #hud-controls button {
-      background: rgba(8,12,18,.72); border: 1px solid rgba(255,255,255,.18); border-radius: 10px;
-      padding: 8px 11px; box-shadow: 0 6px 16px rgba(0,0,0,.18); backdrop-filter: blur(8px);
-      transition: transform .16s ease, background .16s ease, box-shadow .16s ease;
-    }
-    #hud-controls button:hover { background: rgba(255,255,255,.12); color:#fff; transform:translateY(-1px); box-shadow:0 10px 22px rgba(0,0,0,.25); }
-    .game-modal { border: 1px solid rgba(255,255,255,.18); border-radius: 16px; background: rgba(10,14,20,.94); backdrop-filter: blur(12px); box-shadow: 0 22px 70px rgba(0,0,0,.45); }
-    .game-modal h3 { border-bottom-color: rgba(255,255,255,.15); }
-    .item-row button { border-color: rgba(255,255,255,.2); border-radius: 8px; }
-    #chat-container { border:1px solid rgba(255,255,255,.16); border-radius:14px; overflow:hidden; background:rgba(8,12,18,.78); backdrop-filter:blur(10px); box-shadow:0 12px 32px rgba(0,0,0,.3); }
-    #chat-header { background:linear-gradient(90deg,rgba(255,255,255,.08),rgba(255,255,255,.03)); border-bottom-color:rgba(255,255,255,.1); }
-    #chat-input { background:rgba(0,0,0,.28); }
-    .toast { border-radius:999px; background:rgba(10,14,20,.86); border-color:rgba(255,255,255,.16); padding:8px 16px; backdrop-filter:blur(8px); }
-    #mobile-controls .dpad-btn { border-radius:14px; background:rgba(10,14,20,.52); border-color:rgba(255,255,255,.25); backdrop-filter:blur(8px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
-    .setup-box { border-color: rgba(0,255,204,.55); background:linear-gradient(145deg,rgba(10,16,20,.96),rgba(6,8,12,.96)); border-radius:18px; box-shadow:0 30px 90px rgba(0,0,0,.55),0 0 40px rgba(0,255,204,.12); }
-    .setup-box button { border-radius:10px; box-shadow:0 10px 30px rgba(0,255,204,.18); }
-  
-    /* --- V4.3 WORLD / MINIMAP --- */
-    #minimap-wrap{position:absolute;right:14px;bottom:14px;width:236px;padding:8px;border:1px solid rgba(255,255,255,.16);border-radius:16px;background:rgba(7,11,16,.72);backdrop-filter:blur(12px);box-shadow:0 16px 44px rgba(0,0,0,.32);z-index:12;pointer-events:none}
-    .mini-title{display:flex;justify-content:space-between;padding:0 4px 6px;font:700 10px system-ui,sans-serif;letter-spacing:1.2px;color:rgba(255,255,255,.9)}
-    .mini-title span:last-child{color:#9fffe8}
-    #minimap{display:block;width:220px;height:135px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#14201c}
-    .mini-legend{display:flex;gap:8px;justify-content:center;padding-top:6px;font:8px system-ui,sans-serif;color:rgba(255,255,255,.62)}
-    .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:3px;box-shadow:0 0 6px currentColor}
-    .dot.me{color:#fff}.dot.other{color:#57d6ff}.dot.poi{color:#ffd86b}
-    @media(max-width:700px){#minimap-wrap{width:184px}.mini-title{font-size:9px}#minimap{width:168px;height:103px}.mini-legend{font-size:7px;gap:4px}}
   </style>
 </head>
 <body>
 
   <div id="setup-modal">
-    <div class="setup-box">
-      <h2 style="text-align:center;">MEGA CITY v4.1.2</h2>
-      <div style="font-size: 10px; text-align: center; color: #00ffcc;">ACTIVE TRAFFIC & CROSSWALKS</div>
+    <div class="setup-box glass-panel">
+      <h2>MEGA CITY ULTRA</h2>
+      <div style="font-size: 10px; text-align: center; color: #00ffcc; font-weight:700; letter-spacing:1px; margin-top:-10px;">PRO GRAPHICS & REALTIME PHYSICS</div>
       
       <label for="username-input">Citizen Name</label>
       <input type="text" id="username-input" placeholder="Enter Username..." maxlength="12">
@@ -162,11 +156,11 @@
       
       <label for="color-select">Outfit Color</label>
       <select id="color-select">
-        <option value="#ffffff">White</option>
-        <option value="#00ffff">Cyan</option>
-        <option value="#ff00ff">Magenta</option>
-        <option value="#ffff00">Yellow</option>
-        <option value="#ff5722">Orange</option>
+        <option value="#ffffff">Pure White</option>
+        <option value="#00ffcc">Cyber Cyan</option>
+        <option value="#ff007f">Neon Pink</option>
+        <option value="#ffcc00">Electric Gold</option>
+        <option value="#ff5500">Sunset Orange</option>
       </select>
       
       <button onclick="enterHouse()">ENTER METROPOLIS</button>
@@ -174,13 +168,13 @@
   </div>
 
   <div id="game-container">
-    <div id="hud">
-      <div>BUILD: <span style="color:#0f0;">v4.3.0 MEGA</span></div>
+    <div id="hud" class="glass-panel">
+      <div>BUILD: <span style="color:#00ffcc;">v4.4.0 ULTRA</span></div>
       <div>ROOM: <span id="display-room-code">MAIN-CITY</span></div>
-      <div>STATUS: <span id="status-tag" style="color:#0f0;">CONNECTING...</span></div>
+      <div>STATUS: <span id="status-tag" style="color:#00ffcc;">CONNECTING...</span></div>
       <div>LOCATION: <span id="location-tag">HOME</span></div>
-      <div>COINS: $<span id="coins-display">100</span></div>
-      <div id="player-names" style="margin-top:5px; font-size:10px; color:#aaa;"></div>
+      <div>COINS: <span style="color:#ffd86b;">$</span><span id="coins-display">100</span></div>
+      <div id="player-names" style="margin-top:4px; font-size:10px; color:#8a99ad;"></div>
     </div>
 
     <div id="hud-controls">
@@ -194,19 +188,19 @@
 
     <div id="notification-zone"></div>
 
-    <div id="shop-modal" class="game-modal">
+    <div id="shop-modal" class="game-modal glass-panel">
       <h3>CITY SHOP</h3>
       <div id="shop-item-list"></div>
-      <button onclick="toggleShop()" style="width:100%; margin-top:10px; background:#000; color:#fff; border:1px solid #fff; padding:6px; cursor:pointer;">CLOSE</button>
+      <button onclick="toggleShop()" style="width:100%; margin-top:12px; background:rgba(255,255,255,0.1); color:#fff; border:1px solid rgba(255,255,255,0.2); padding:8px; cursor:pointer; border-radius:8px; font-weight:700;">CLOSE</button>
     </div>
 
-    <div id="inventory-modal" class="game-modal">
+    <div id="inventory-modal" class="game-modal glass-panel">
       <h3>BACKPACK</h3>
       <div id="inventory-item-list"></div>
-      <button onclick="toggleInventory()" style="width:100%; margin-top:10px; background:#000; color:#fff; border:1px solid #fff; padding:6px; cursor:pointer;">CLOSE</button>
+      <button onclick="toggleInventory()" style="width:100%; margin-top:12px; background:rgba(255,255,255,0.1); color:#fff; border:1px solid rgba(255,255,255,0.2); padding:8px; cursor:pointer; border-radius:8px; font-weight:700;">CLOSE</button>
     </div>
 
-    <div id="chat-container">
+    <div id="chat-container" class="glass-panel">
       <div id="chat-header" onclick="toggleChat()">
         <span>WORLD CHAT</span>
         <span id="chat-toggle-icon">[–]</span>
@@ -217,9 +211,9 @@
       </div>
     </div>
 
-    <div id="minimap-wrap">
+    <div id="minimap-wrap" class="glass-panel">
       <div class="mini-title"><span>MEGA CITY</span><span id="time-label">DAY</span></div>
-      <canvas id="minimap" width="220" height="135"></canvas>
+      <canvas id="minimap" width="210" height="130"></canvas>
       <div class="mini-legend"><span><i class="dot me"></i>YOU</span><span><i class="dot other"></i>PLAYERS</span><span><i class="dot poi"></i>PLACES</span></div>
     </div>
 
@@ -227,7 +221,7 @@
       <div class="dpad-row"><div class="dpad-btn" id="btn-up">▲</div></div>
       <div class="dpad-row">
         <div class="dpad-btn" id="btn-left">◄</div>
-        <div class="dpad-btn" style="opacity:0;"></div>
+        <div class="dpad-btn" style="opacity:0; pointer-events:none;"></div>
         <div class="dpad-btn" id="btn-right">►</div>
       </div>
       <div class="dpad-row"><div class="dpad-btn" id="btn-down">▼</div></div>
@@ -237,13 +231,14 @@
   </div>
 
   <script>
-    const GAME_VERSION = "4.3.0";
+    const GAME_VERSION = "4.4.0 ULTRA";
     const WORLD_WIDTH = 4200;
     const WORLD_HEIGHT = 2800;
     const PLAYER_TIMEOUT_MS = 10000;
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+    let dpr = window.devicePixelRatio || 1;
 
     window.addEventListener('DOMContentLoaded', () => {
       const lastUser = localStorage.getItem('nh_last_username');
@@ -257,9 +252,7 @@
         if (typeof r === 'number') r = {tl: r, tr: r, br: r, bl: r};
         else {
           var defaultRadius = {tl: 0, tr: 0, br: 0, bl: 0};
-          for (var side in defaultRadius) {
-            r[side] = r[side] || defaultRadius[side];
-          }
+          for (var side in defaultRadius) { r[side] = r[side] || defaultRadius[side]; }
         }
         this.beginPath();
         this.moveTo(x + r.tl, y);
@@ -277,8 +270,11 @@
     }
 
     function resizeCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      dpr = window.devicePixelRatio || 1;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
@@ -292,12 +288,9 @@
     let visualTime = 0;
     let camera = { x: 0, y: 0, zoom: 1 };
     let particles = [];
-    let lastPlayerX = 0;
-    let lastPlayerY = 0;
-    let dayClock = 0.24; // 0..1, starts mid-morning
+    let dayClock = 0.24; 
     let cameraShake = 0;
     let zonePulse = 0;
-
 
     let selectedAvatar = 'martin';
     let selectedColor = '#ffffff';
@@ -313,7 +306,7 @@
       x: 310,
       y: 350,
       radius: 12,
-      speed: 4,
+      speed: 4.2,
       location: 'house_martin',
       coins: 100,
       inventory: [],
@@ -325,7 +318,6 @@
       dir: 'down'
     };
 
-    // --- CASA DE GABY Y POLICÍA INTERCAMBIADAS ---
     let houses = [
       { id: 'house_martin', name: "Martin's House", x: 200, y: 180, w: 220, h: 140, doorX: 310, doorY: 320, exitX: 310, exitY: 370, furniture: '📺 Smart TV & Sofa' },
       { id: 'house_police', name: "City Police 🚨", x: 480, y: 180, w: 260, h: 140, doorX: 590, doorY: 320, exitX: 590, exitY: 370, furniture: '💻 Surveillance Hub' },
@@ -403,9 +395,9 @@
     ];
 
     let vehicles = [
-      { id: 'v_car1', type: 'car', color: '#e67e22', x: 600, y: 465, speed: 8, driver: null, location: 'world' },
-      { id: 'v_car2', type: 'car', color: '#2980b9', x: 2200, y: 1465, speed: 8, driver: null, location: 'world' },
-      { id: 'v_plane1', type: 'plane', icon: '✈️', color: '#ecf0f1', x: 1800, y: 2330, speed: 11, driver: null, location: 'world' }
+      { id: 'v_car1', type: 'car', color: '#e67e22', x: 600, y: 465, speed: 8.5, driver: null, location: 'world' },
+      { id: 'v_car2', type: 'car', color: '#2980b9', x: 2200, y: 1465, speed: 8.5, driver: null, location: 'world' },
+      { id: 'v_plane1', type: 'plane', icon: '✈️', color: '#ecf0f1', x: 1800, y: 2330, speed: 12, driver: null, location: 'world' }
     ];
 
     let mapCoins = [
@@ -536,7 +528,7 @@
       const container = document.getElementById('inventory-item-list');
       container.innerHTML = '';
       if (localPlayer.inventory.length === 0) {
-        container.innerHTML = '<div style="font-size:10px; color:#aaa; text-align:center;">Empty Backpack</div>';
+        container.innerHTML = '<div style="font-size:11px; color:#8a99ad; text-align:center; padding:10px;">Backpack is empty</div>';
         return;
       }
 
@@ -623,7 +615,6 @@
     }
 
     function resetPosition() {
-      if (localPlayer.isMounted && localPlayer.isMoving && animFrame % 3 === 0 && localPlayer.location === 'world') spawnParticle(localPlayer.x, localPlayer.y+15, '#67e8f9', 2, 1.2, 20, 2.4);
       if (localPlayer.vehicle) {
         let v = vehicles.find(item => item.id === localPlayer.vehicle);
         if (v) v.driver = null;
@@ -844,7 +835,7 @@
     function addChatMessage(sender, text) {
       const logs = document.getElementById('chat-logs');
       const msgDiv = document.createElement('div');
-      msgDiv.innerHTML = `<strong>${sender}:</strong> ${text}`;
+      msgDiv.innerHTML = `<strong style="color:#00ffcc">${sender}:</strong> ${text}`;
       logs.appendChild(msgDiv); logs.scrollTop = logs.scrollHeight;
     }
 
@@ -897,7 +888,9 @@
       if (localPlayer.location !== 'world') return;
       mapCoins.forEach(coin => {
         if (coin.active && Math.hypot(localPlayer.x - coin.x, localPlayer.y - coin.y) < 25) {
-          coin.active = false; localPlayer.coins += 10; cameraShake = 7; spawnParticle(coin.x,coin.y,'#ffd54a',16,2.8,34,3.5); spawnParticle(coin.x, coin.y, '#ffd54a', 18, 2.6, 42, 3.2);
+          coin.active = false; localPlayer.coins += 10; cameraShake = 7; 
+          spawnParticle(coin.x, coin.y, '#ffd54a', 16, 2.8, 34, 3.5); 
+          spawnParticle(coin.x, coin.y, '#00ffcc', 12, 2.0, 28, 2.5);
           savePlayerData(); playCoinSFX(); showNotification("+$10 Coins!", 'success');
           setTimeout(() => {
             coin.x = Math.floor(Math.random() * (WORLD_WIDTH - 200)) + 100;
@@ -937,7 +930,7 @@
       animFrame++;
       visualTime = performance.now();
       dayClock = (dayClock + 0.000018) % 1;
-      cameraShake *= .9;
+      cameraShake *= 0.88;
       drawMinimap();
       updateParticles();
       cleanupGhostPlayers();
@@ -950,38 +943,51 @@
 
       let currentSpeed = localPlayer.speed;
       if (localPlayer.hasAura) currentSpeed += 3;
-      if (localPlayer.isMounted) currentSpeed += 2;
+      if (localPlayer.isMounted) currentSpeed += 2.2;
       
       if (localPlayer.vehicle) {
         let v = vehicles.find(item => item.id === localPlayer.vehicle);
         if (v) currentSpeed = v.speed;
       }
 
-      let nextX = localPlayer.x; let nextY = localPlayer.y;
-      localPlayer.isMoving = false;
+      let moveX = 0, moveY = 0;
+      if (keys['ArrowUp'] || keys['w']) moveY -= 1;
+      if (keys['ArrowDown'] || keys['s']) moveY += 1;
+      if (keys['ArrowLeft'] || keys['a']) moveX -= 1;
+      if (keys['ArrowRight'] || keys['d']) moveX += 1;
 
-      if (keys['ArrowUp'] || keys['w']) { nextY -= currentSpeed; localPlayer.dir = 'up'; localPlayer.isMoving = true; }
-      if (keys['ArrowDown'] || keys['s']) { nextY += currentSpeed; localPlayer.dir = 'down'; localPlayer.isMoving = true; }
-      if (keys['ArrowLeft'] || keys['a']) { nextX -= currentSpeed; localPlayer.dir = 'left'; localPlayer.isMoving = true; }
-      if (keys['ArrowRight'] || keys['d']) { nextX += currentSpeed; localPlayer.dir = 'right'; localPlayer.isMoving = true; }
+      if (moveX !== 0 || moveY !== 0) {
+        localPlayer.isMoving = true;
+        let len = Math.hypot(moveX, moveY);
+        let vx = (moveX / len) * currentSpeed;
+        let vy = (moveY / len) * currentSpeed;
 
-      if (!checkWallCollision(nextX, localPlayer.y, localPlayer.radius)) localPlayer.x = nextX;
-      if (localPlayer.isMoving && animFrame % 7 === 0 && localPlayer.location === 'world' && !localPlayer.vehicle) {
-        spawnParticle(localPlayer.x, localPlayer.y+10, 'rgba(210,220,210,.65)', 2, .7, 18, 2);
+        if (Math.abs(moveX) > Math.abs(moveY)) localPlayer.dir = moveX > 0 ? 'right' : 'left';
+        else localPlayer.dir = moveY > 0 ? 'down' : 'up';
+
+        let nextX = localPlayer.x + vx;
+        let nextY = localPlayer.y + vy;
+
+        if (!checkWallCollision(nextX, localPlayer.y, localPlayer.radius)) localPlayer.x = nextX;
+        if (!checkWallCollision(localPlayer.x, nextY, localPlayer.radius)) localPlayer.y = nextY;
+
+        if (animFrame % 6 === 0 && localPlayer.location === 'world' && !localPlayer.vehicle) {
+          spawnParticle(localPlayer.x, localPlayer.y + 12, 'rgba(255,255,255,0.3)', 2, 0.6, 15, 2);
+        }
+        if (localPlayer.isMounted && animFrame % 2 === 0) {
+          spawnParticle(localPlayer.x, localPlayer.y + 14, '#00ffcc', 2, 0.8, 16, 2.5);
+        }
+      } else {
+        localPlayer.isMoving = false;
       }
-      if (localPlayer.isMounted && localPlayer.isMoving && animFrame % 3 === 0) {
-        spawnParticle(localPlayer.x - Math.cos(({up: -Math.PI/2,down:Math.PI/2,left:Math.PI,right:0}[localPlayer.dir]||0))*8, localPlayer.y - Math.sin(({up: -Math.PI/2,down:Math.PI/2,left:Math.PI,right:0}[localPlayer.dir]||0))*8, '#ff4fd8', 2, .7, 18, 2.5);
-      }
-
-      if (!checkWallCollision(localPlayer.x, nextY, localPlayer.radius)) localPlayer.y = nextY;
 
       checkCoinPickups();
 
       if (localPlayer.vehicle) {
         let v = vehicles.find(item => item.id === localPlayer.vehicle);
         if (v) { v.x = localPlayer.x; v.y = localPlayer.y; }
-        if (localPlayer.isMoving && animFrame % 10 === 0) { playVehicleSFX(); cameraShake = Math.min(2.5,cameraShake+.3); }
-      } else if (localPlayer.isMoving && animFrame % 18 === 0) {
+        if (localPlayer.isMoving && animFrame % 8 === 0) { playVehicleSFX(); cameraShake = Math.min(2.5, cameraShake + 0.3); }
+      } else if (localPlayer.isMoving && animFrame % 16 === 0) {
         playFootstepSFX();
       }
 
@@ -993,14 +999,14 @@
     function spawnParticle(x, y, color, count = 8, speed = 1.8, life = 40, size = 3) {
       for (let i = 0; i < count; i++) {
         const a = Math.random() * Math.PI * 2;
-        const s = Math.random() * speed + .4;
-        particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, life, maxLife: life, color, size: Math.random()*size+.8, gravity:.03 });
+        const s = Math.random() * speed + 0.4;
+        particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, life, maxLife: life, color, size: Math.random()*size+.8, gravity:.02 });
       }
     }
 
     function updateParticles() {
       for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i]; p.x += p.vx; p.y += p.vy; p.vy += p.gravity; p.vx *= .985; p.vy *= .985; p.life--;
+        const p = particles[i]; p.x += p.vx; p.y += p.vy; p.vy += p.gravity; p.vx *= 0.98; p.vy *= 0.98; p.life--;
         if (p.life <= 0) particles.splice(i,1);
       }
     }
@@ -1024,44 +1030,56 @@
       const grad = horizontal
         ? ctx.createLinearGradient(0,y,0,y+h)
         : ctx.createLinearGradient(x,0,x+w,0);
-      grad.addColorStop(0,'#222933'); grad.addColorStop(.5,'#2b313b'); grad.addColorStop(1,'#20262f');
+      grad.addColorStop(0,'#1e2530'); grad.addColorStop(0.5,'#262f3d'); grad.addColorStop(1,'#1b212b');
       ctx.fillStyle = grad; ctx.fillRect(x,y,w,h);
-      ctx.globalAlpha=.08; ctx.fillStyle='#fff';
-      const step=32;
+      
+      ctx.globalAlpha = 0.05; ctx.fillStyle='#fff';
+      const step = 32;
       for(let yy=y+8; yy<y+h; yy+=step) for(let xx=x+8; xx<x+w; xx+=step) ctx.fillRect(xx,yy,2,1);
-      ctx.globalAlpha=1;
-      ctx.strokeStyle='rgba(255,255,255,.035)'; ctx.lineWidth=2; ctx.strokeRect(x+.5,y+.5,w-1,h-1);
+      ctx.globalAlpha = 1;
+      
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 2; ctx.strokeRect(x+.5,y+.5,w-1,h-1);
       ctx.restore();
     }
 
     function drawBuilding(h) {
       ctx.save();
       const shadow = ctx.createLinearGradient(h.x+14,h.y+14,h.x+h.w+24,h.y+h.h+24);
-      shadow.addColorStop(0,'rgba(0,0,0,.28)'); shadow.addColorStop(1,'rgba(0,0,0,0)');
+      shadow.addColorStop(0,'rgba(0,0,0,0.4)'); shadow.addColorStop(1,'rgba(0,0,0,0)');
       ctx.fillStyle=shadow; ctx.fillRect(h.x+10,h.y+12,h.w+24,h.h+24);
-      const base = h.id === 'house_bar' ? '#24143b' : h.id === 'house_shop' ? '#073b43' : h.id === 'house_hospital' ? '#5a1820' : '#4c3025';
-      const top = h.id === 'house_bar' ? '#54239a' : h.id === 'house_shop' ? '#096c78' : h.id === 'house_hospital' ? '#8e2731' : '#6c4634';
+
+      const base = h.id === 'house_bar' ? '#221133' : h.id === 'house_shop' ? '#063038' : h.id === 'house_hospital' ? '#4a1218' : '#3d251d';
+      const top = h.id === 'house_bar' ? '#4d1e8c' : h.id === 'house_shop' ? '#085f6a' : h.id === 'house_hospital' ? '#7c202a' : '#5c3a2a';
       const grad = ctx.createLinearGradient(h.x,h.y,h.x,h.y+h.h); grad.addColorStop(0,top); grad.addColorStop(1,base);
       roundedRectPath(h.x,h.y,h.w,h.h,14); ctx.fillStyle=grad; ctx.fill();
-      ctx.strokeStyle='rgba(255,255,255,.22)'; ctx.lineWidth=2; ctx.stroke();
-      ctx.fillStyle='rgba(255,255,255,.05)'; ctx.fillRect(h.x+8,h.y+8,h.w-16,3);
-      // windows
-      const winGlow = h.id === 'house_bar' ? 'rgba(255,69,123,.72)' : 'rgba(155,220,255,.62)';
-      for(const wx of [h.x+28,h.x+h.w-54]) { const g=ctx.createRadialGradient(wx+12,h.y+67,2,wx+12,h.y+67,30); g.addColorStop(0,winGlow);g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.fillRect(wx-18,h.y+37,60,60); ctx.fillStyle= '#9fdcff'; roundedRectPath(wx,h.y+50,25,35,5);ctx.fill(); }
-      // sign
-      const signColor = h.id === 'house_bar' ? '#ff3d8d' : h.id === 'house_shop' ? '#00e5ff' : h.id === 'house_hospital' ? '#ff5a68' : '#ffb36b';
-      ctx.shadowBlur=16;ctx.shadowColor=signColor;ctx.fillStyle=signColor;roundedRectPath(h.x-7,h.y-20,h.w+14,26,8);ctx.fill();ctx.shadowBlur=0;
-      ctx.fillStyle='#fff';ctx.font='700 12px system-ui,sans-serif';ctx.textAlign='center';ctx.fillText(h.name.replace(/\s*\p{Extended_Pictographic}/gu,''),h.x+h.w/2,h.y-3);
-      ctx.font='10px system-ui,sans-serif';ctx.fillStyle='rgba(255,255,255,.72)';ctx.fillText(h.furniture.replace(/\p{Extended_Pictographic}/gu,''),h.x+h.w/2,h.y+28);
-      // entrance
-      ctx.fillStyle='#ffe082';ctx.shadowBlur=12;ctx.shadowColor='#ffd54f';roundedRectPath(h.doorX-19,h.doorY-5,38,10,5);ctx.fill();ctx.shadowBlur=0;
+      ctx.strokeStyle='rgba(255,255,255,0.18)'; ctx.lineWidth=2; ctx.stroke();
+
+      const winGlow = h.id === 'house_bar' ? 'rgba(255,0,128,0.8)' : 'rgba(0,255,204,0.7)';
+      for(const wx of [h.x+28,h.x+h.w-54]) { 
+        const g=ctx.createRadialGradient(wx+12,h.y+67,2,wx+12,h.y+67,30); 
+        g.addColorStop(0,winGlow); g.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle=g; ctx.fillRect(wx-18,h.y+37,60,60); 
+        ctx.fillStyle='#a0ebff'; roundedRectPath(wx,h.y+50,25,35,5); ctx.fill(); 
+      }
+
+      const signColor = h.id === 'house_bar' ? '#ff007f' : h.id === 'house_shop' ? '#00ffcc' : h.id === 'house_hospital' ? '#ff3366' : '#ffaa00';
+      ctx.shadowBlur=18; ctx.shadowColor=signColor; ctx.fillStyle=signColor;
+      roundedRectPath(h.x-7,h.y-20,h.w+14,26,8); ctx.fill(); ctx.shadowBlur=0;
+      
+      ctx.fillStyle='#fff'; ctx.font='700 13px system-ui,sans-serif'; ctx.textAlign='center';
+      ctx.fillText(h.name.replace(/\s*\p{Extended_Pictographic}/gu,''),h.x+h.w/2,h.y-3);
+      ctx.font='11px system-ui,sans-serif'; ctx.fillStyle='rgba(255,255,255,0.75)';
+      ctx.fillText(h.furniture.replace(/\p{Extended_Pictographic}/gu,''),h.x+h.w/2,h.y+28);
+
+      ctx.fillStyle='#ffd86b'; ctx.shadowBlur=12; ctx.shadowColor='#ffd86b';
+      roundedRectPath(h.doorX-19,h.doorY-5,38,10,5); ctx.fill(); ctx.shadowBlur=0;
       ctx.restore();
     }
 
     function drawDistrict(x,y,w,h,label,fill){
-      ctx.save(); ctx.fillStyle=fill; ctx.globalAlpha=.42; ctx.fillRect(x,y,w,h); ctx.globalAlpha=1;
-      ctx.strokeStyle='rgba(255,255,255,.055)'; ctx.lineWidth=2; ctx.setLineDash([8,14]); ctx.strokeRect(x+10,y+10,w-20,h-20); ctx.setLineDash([]);
-      ctx.fillStyle='rgba(255,255,255,.24)'; ctx.font='700 18px system-ui,sans-serif'; ctx.textAlign='left';
+      ctx.save(); ctx.fillStyle=fill; ctx.globalAlpha=0.38; ctx.fillRect(x,y,w,h); ctx.globalAlpha=1;
+      ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=2; ctx.setLineDash([8,14]); ctx.strokeRect(x+10,y+10,w-20,h-20); ctx.setLineDash([]);
+      ctx.fillStyle='rgba(255,255,255,0.22)'; ctx.font='800 18px system-ui,sans-serif'; ctx.textAlign='left';
       ctx.fillText(label,x+24,y+34); ctx.restore();
     }
 
@@ -1075,10 +1093,10 @@
 
     function getLightSettings(){
       const t=dayClock;
-      if(t<.20||t>.82) return {overlay:'rgba(14,24,58,.58)',lamp:1.2,neon:1.45};
-      if(t<.30) return {overlay:'rgba(255,174,104,.13)',lamp:.35,neon:.75};
-      if(t<.68) return {overlay:'rgba(255,248,220,0)',lamp:.05,neon:.35};
-      return {overlay:'rgba(255,130,70,.14)',lamp:.55,neon:1.0};
+      if(t<.20||t>.82) return {overlay:'rgba(10,18,40,0.62)',lamp:1.3,neon:1.5};
+      if(t<.30) return {overlay:'rgba(255,160,90,0.15)',lamp:.4,neon:.8};
+      if(t<.68) return {overlay:'rgba(0,0,0,0)',lamp:.05,neon:.35};
+      return {overlay:'rgba(255,110,60,0.18)',lamp:.6,neon:1.1};
     }
 
     function drawLightingOverlay(){
@@ -1086,8 +1104,8 @@
       ctx.fillStyle=ls.overlay; ctx.fillRect(0,0,WORLD_WIDTH,WORLD_HEIGHT);
       if(getDayState()==='NIGHT'||getDayState()==='SUNSET'){
         streetLights.forEach(l=>{
-          const r=78*ls.lamp; const g=ctx.createRadialGradient(l.x,l.y-30,4,l.x,l.y-30,r);
-          g.addColorStop(0,`rgba(255,235,150,${.24*ls.lamp})`); g.addColorStop(1,'rgba(255,190,80,0)');
+          const r=85*ls.lamp; const g=ctx.createRadialGradient(l.x,l.y-30,4,l.x,l.y-30,r);
+          g.addColorStop(0,`rgba(255,235,160,${.35*ls.lamp})`); g.addColorStop(1,'rgba(255,190,80,0)');
           ctx.fillStyle=g; ctx.beginPath(); ctx.arc(l.x,l.y-30,r,0,Math.PI*2); ctx.fill();
         });
       }
@@ -1098,20 +1116,20 @@
       const m=mm.getContext('2d'),w=mm.width,h=mm.height,sx=w/WORLD_WIDTH,sy=h/WORLD_HEIGHT;
       m.clearRect(0,0,w,h);
       const night=(getDayState()==='NIGHT');
-      m.fillStyle=night?'#111b26':'#385b42';m.fillRect(0,0,w,h);
-      m.fillStyle=night?'#283440':'#555e62';
+      m.fillStyle=night?'#0b131c':'#2d4a36';m.fillRect(0,0,w,h);
+      m.fillStyle=night?'#1c2633':'#475256';
       m.fillRect(0,400*sy,w,140*sy);m.fillRect(0,1500*sy,w,140*sy);m.fillRect(900*sx,0,140*sx,h);m.fillRect(1900*sx,0,140*sx,h);m.fillRect(2900*sx,0,140*sx,h);
-      m.fillStyle='#5f8e5d';m.fillRect(1100*sx,950*sy,750*sx,500*sy);m.fillStyle='#437d58';m.fillRect(2200*sx,900*sy,650*sx,360*sy);
-      houses.forEach(hh=>{m.fillStyle=hh.id==='house_bar'?'#d64c9a':hh.id==='house_hospital'?'#ff6370':'#cf9a69';m.fillRect(hh.x*sx,hh.y*sy,hh.w*sx,hh.h*sy)});
+      m.fillStyle='#4c7d53';m.fillRect(1100*sx,950*sy,750*sx,500*sy);m.fillStyle='#366948';m.fillRect(2200*sx,900*sy,650*sx,360*sy);
+      houses.forEach(hh=>{m.fillStyle=hh.id==='house_bar'?'#e6399b':hh.id==='house_hospital'?'#ff4d5a':'#c28e5f';m.fillRect(hh.x*sx,hh.y*sy,hh.w*sx,hh.h*sy)});
       m.fillStyle='#ffd86b';[ {x:1475,y:1200},{x:2525,y:1080},{x:2460,y:1800},{x:1550,y:2325} ].forEach(p=>{m.beginPath();m.arc(p.x*sx,p.y*sy,2.4,0,Math.PI*2);m.fill()});
-      for(const id in players){const p=players[id];if(p.location==='world'){m.fillStyle='#57d6ff';m.beginPath();m.arc(p.x*sx,p.y*sy,2,0,Math.PI*2);m.fill()}}
-      if(localPlayer.location==='world'){m.fillStyle='#fff';m.shadowBlur=7;m.shadowColor='#fff';m.beginPath();m.arc(localPlayer.x*sx,localPlayer.y*sy,3.2,0,Math.PI*2);m.fill();m.shadowBlur=0}
-      m.strokeStyle='rgba(255,255,255,.18)';m.strokeRect(.5,.5,w-1,h-1);
+      for(const id in players){const p=players[id];if(p.location==='world'){m.fillStyle='#00b3f0';m.beginPath();m.arc(p.x*sx,p.y*sy,2.2,0,Math.PI*2);m.fill()}}
+      if(localPlayer.location==='world'){m.fillStyle='#fff';m.shadowBlur=8;m.shadowColor='#00ffcc';m.beginPath();m.arc(localPlayer.x*sx,localPlayer.y*sy,3.5,0,Math.PI*2);m.fill();m.shadowBlur=0}
+      m.strokeStyle='rgba(255,255,255,0.15)';m.strokeRect(.5,.5,w-1,h-1);
       const tl=document.getElementById('time-label');if(tl)tl.textContent=getDayState();
     }
 
     function drawCrosswalk(x, y, w, h, horizontal = true) {
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
       let stripeSize = 14;
       let gap = 10;
       if (horizontal) {
@@ -1126,81 +1144,102 @@
     }
 
     function drawWorld() {
-      // soft city ground + district color accents
       const base = ctx.createLinearGradient(0,0,0,WORLD_HEIGHT);
-      base.addColorStop(0,'#78a96b'); base.addColorStop(.48,'#6e9d63'); base.addColorStop(1,'#5e8d59');
+      base.addColorStop(0,'#6b9a5e'); base.addColorStop(0.5,'#5d8e50'); base.addColorStop(1,'#4f7d43');
       ctx.fillStyle=base; ctx.fillRect(0,0,WORLD_WIDTH,WORLD_HEIGHT);
-      drawDistrict(0,0,900,400,'RESIDENTIAL','#86b96e');
-      drawDistrict(1040,0,860,400,'DOWNTOWN','#6ea7a8');
-      drawDistrict(2040,0,860,400,'NIGHTLIFE','#866ba5');
-      drawDistrict(3040,0,1160,700,'COMMERCE','#86a16a');
-      drawDistrict(0,600,900,900,'SUBURBS','#7da96b');
-      drawDistrict(1040,600,860,900,'CENTRAL PARK','#5f9f73');
-      drawDistrict(2040,600,860,900,'SPORTS DISTRICT','#4e9f72');
-      drawDistrict(3040,700,1160,1500,'INDUSTRIAL','#8d8f78');
-      drawDistrict(0,1640,900,1160,'SUBURBAN EAST','#86a86d');
-      drawDistrict(1040,1640,1860,1160,'AIRPORT & TRANSIT','#7f957f');
-      drawDistrict(3040,1640,1160,1160,'OLD TOWN','#a98a6d');
-      // lush base
-      const sky = ctx.createLinearGradient(0,0,0,WORLD_HEIGHT); sky.addColorStop(0,'#84c98d'); sky.addColorStop(1,'#5ea970');
-      ctx.fillStyle=sky;ctx.fillRect(0,0,WORLD_WIDTH,WORLD_HEIGHT);
-      // city blocks / sidewalks
+      
+      drawDistrict(0,0,900,400,'RESIDENTIAL','#78aa60');
+      drawDistrict(1040,0,860,400,'DOWNTOWN','#5b9899');
+      drawDistrict(2040,0,860,400,'NIGHTLIFE','#765b95');
+      drawDistrict(3040,0,1160,700,'COMMERCE','#78935c');
+      drawDistrict(0,600,900,900,'SUBURBS','#6e9a5d');
+      drawDistrict(1040,600,860,900,'CENTRAL PARK','#4f8f63');
+      drawDistrict(2040,600,860,900,'SPORTS DISTRICT','#3e8f62');
+      drawDistrict(3040,700,1160,1500,'INDUSTRIAL','#7d7f68');
+      drawDistrict(0,1640,900,1160,'SUBURBAN EAST','#789a5e');
+      drawDistrict(1040,1640,1860,1160,'AIRPORT & TRANSIT','#6f856f');
+      drawDistrict(3040,1640,1160,1160,'OLD TOWN','#997a5d');
+
       [[0,400,WORLD_WIDTH,140,true],[0,1500,WORLD_WIDTH,140,true],[900,0,140,WORLD_HEIGHT,false],[1900,0,140,WORLD_HEIGHT,false],[2900,0,140,WORLD_HEIGHT,false]].forEach(r=>drawRoadTexture(...r));
-      ctx.fillStyle='#aeb4bd';
+      
+      ctx.fillStyle='#9ea4ae';
       ctx.fillRect(0,360,WORLD_WIDTH,40);ctx.fillRect(0,540,WORLD_WIDTH,40);ctx.fillRect(0,1460,WORLD_WIDTH,40);ctx.fillRect(0,1640,WORLD_WIDTH,40);
       ctx.fillRect(860,0,40,WORLD_HEIGHT);ctx.fillRect(1040,0,40,WORLD_HEIGHT);ctx.fillRect(1860,0,40,WORLD_HEIGHT);ctx.fillRect(2040,0,40,WORLD_HEIGHT);ctx.fillRect(2860,0,40,WORLD_HEIGHT);ctx.fillRect(3040,0,40,WORLD_HEIGHT);
-      // lane markings
-      ctx.save();ctx.strokeStyle='rgba(255,211,64,.8)';ctx.lineWidth=3;ctx.setLineDash([28,24]);
+
+      ctx.save();ctx.strokeStyle='rgba(255,211,64,0.85)';ctx.lineWidth=3;ctx.setLineDash([28,24]);
       [470,1570].forEach(y=>{ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(WORLD_WIDTH,y);ctx.stroke();});
       [970,1970,2970].forEach(x=>{ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,WORLD_HEIGHT);ctx.stroke();});ctx.restore();
-      // intersections and crosswalks
+
       [[900,400],[1900,400],[2900,400],[900,1500],[1900,1500],[2900,1500]].forEach(([ix,iy])=>{
         drawCrosswalk(ix-40,iy,40,140,false);drawCrosswalk(ix+140,iy,40,140,false);drawCrosswalk(ix,iy-40,140,40,true);drawCrosswalk(ix,iy+140,140,40,true);
       });
-      // plaza
-      const plazaGrad=ctx.createLinearGradient(1100,950,1850,1450);plazaGrad.addColorStop(0,'#2d8f62');plazaGrad.addColorStop(1,'#1f7450');ctx.fillStyle=plazaGrad;ctx.fillRect(1100,950,750,500);
-      ctx.strokeStyle='rgba(255,255,255,.18)';ctx.lineWidth=4;ctx.strokeRect(1100,950,750,500);
-      ctx.fillStyle='#aeb4bd';ctx.fillRect(1435,950,80,500);ctx.fillRect(1100,1160,750,80);
-      // fountain glow
-      const fg=ctx.createRadialGradient(1475,1200,8,1475,1200,90);fg.addColorStop(0,'rgba(87,203,255,.65)');fg.addColorStop(1,'rgba(87,203,255,0)');ctx.fillStyle=fg;ctx.beginPath();ctx.arc(1475,1200,90,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#2f8fd8';ctx.beginPath();ctx.arc(1475,1200,62,0,Math.PI*2);ctx.fill();ctx.fillStyle='#76d7ff';ctx.beginPath();ctx.arc(1475,1200,34,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='rgba(255,255,255,.8)';ctx.font='700 14px system-ui,sans-serif';ctx.textAlign='center';ctx.fillText('CENTRAL PLAZA',1475,1100);
-      // sports zones
-      ctx.fillStyle='#237f47';ctx.fillRect(2200,900,650,360);ctx.strokeStyle='rgba(255,255,255,.35)';ctx.lineWidth=3;ctx.strokeRect(2200,900,650,360);ctx.beginPath();ctx.moveTo(2525,900);ctx.lineTo(2525,1260);ctx.stroke();ctx.beginPath();ctx.arc(2525,1080,55,0,Math.PI*2);ctx.stroke();
-      ctx.fillStyle='#c96a2b';ctx.fillRect(2200,1640,520,320);ctx.strokeStyle='rgba(255,255,255,.35)';ctx.strokeRect(2200,1640,520,320);ctx.strokeRect(2250,1690,420,220);ctx.beginPath();ctx.moveTo(2460,1640);ctx.lineTo(2460,1960);ctx.stroke();
-      ctx.fillStyle='rgba(255,255,255,.84)';ctx.font='700 13px system-ui,sans-serif';ctx.fillText('COMMUNITY SOCCER',2525,880);ctx.fillText('TENNIS CLUB',2460,1620);
-      // airport
-      const rg=ctx.createLinearGradient(1000,2250,2100,2400);rg.addColorStop(0,'#1a1f26');rg.addColorStop(1,'#303742');ctx.fillStyle=rg;ctx.fillRect(1000,2250,1100,150);ctx.strokeStyle='rgba(255,255,255,.12)';ctx.strokeRect(1000,2250,1100,150);ctx.strokeStyle='rgba(255,255,255,.5)';ctx.setLineDash([35,25]);ctx.beginPath();ctx.moveTo(1020,2325);ctx.lineTo(2080,2325);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='rgba(255,255,255,.85)';ctx.font='700 13px system-ui,sans-serif';ctx.fillText('METROPOLITAN AIRPORT',1550,2225);
-      // buildings
+
+      const plazaGrad=ctx.createLinearGradient(1100,950,1850,1450);plazaGrad.addColorStop(0,'#237e54');plazaGrad.addColorStop(1,'#186343');
+      ctx.fillStyle=plazaGrad;ctx.fillRect(1100,950,750,500);
+      ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=4;ctx.strokeRect(1100,950,750,500);
+      ctx.fillStyle='#9ea4ae';ctx.fillRect(1435,950,80,500);ctx.fillRect(1100,1160,750,80);
+
+      const fg=ctx.createRadialGradient(1475,1200,8,1475,1200,90);fg.addColorStop(0,'rgba(0,255,204,0.6)');fg.addColorStop(1,'rgba(0,255,204,0)');
+      ctx.fillStyle=fg;ctx.beginPath();ctx.arc(1475,1200,90,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#1f7bc4';ctx.beginPath();ctx.arc(1475,1200,62,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#61d3ff';ctx.beginPath();ctx.arc(1475,1200,34,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,0.9)';ctx.font='800 14px system-ui,sans-serif';ctx.textAlign='center';ctx.fillText('CENTRAL PLAZA',1475,1100);
+
+      ctx.fillStyle='#1e6f3e';ctx.fillRect(2200,900,650,360);ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=3;ctx.strokeRect(2200,900,650,360);ctx.beginPath();ctx.moveTo(2525,900);ctx.lineTo(2525,1260);ctx.stroke();ctx.beginPath();ctx.arc(2525,1080,55,0,Math.PI*2);ctx.stroke();
+      ctx.fillStyle='#b85d21';ctx.fillRect(2200,1640,520,320);ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.strokeRect(2200,1640,520,320);ctx.strokeRect(2250,1690,420,220);ctx.beginPath();ctx.moveTo(2460,1640);ctx.lineTo(2460,1960);ctx.stroke();
+      ctx.fillStyle='rgba(255,255,255,0.9)';ctx.font='800 13px system-ui,sans-serif';ctx.fillText('COMMUNITY SOCCER',2525,880);ctx.fillText('TENNIS CLUB',2460,1620);
+
+      const rg=ctx.createLinearGradient(1000,2250,2100,2400);rg.addColorStop(0,'#15191f');rg.addColorStop(1,'#282f38');ctx.fillStyle=rg;ctx.fillRect(1000,2250,1100,150);ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.strokeRect(1000,2250,1100,150);ctx.strokeStyle='rgba(255,255,255,0.6)';ctx.setLineDash([35,25]);ctx.beginPath();ctx.moveTo(1020,2325);ctx.lineTo(2080,2325);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='rgba(255,255,255,0.9)';ctx.font='800 13px system-ui,sans-serif';ctx.fillText('METROPOLITAN AIRPORT',1550,2225);
+
       houses.forEach(drawBuilding);
-      // trees with soft shadows
+
       sceneryTrees.forEach(t=>{
-        ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.ellipse(t.x+8,t.y+14,t.r*.8,t.r*.35,0,0,Math.PI*2);ctx.fill();
-        const tg=ctx.createRadialGradient(t.x-10,t.y-18,4,t.x,t.y-8,t.r);tg.addColorStop(0,'#74d27a');tg.addColorStop(.55,'#2f8b45');tg.addColorStop(1,'#1d5d31');ctx.fillStyle=tg;ctx.beginPath();ctx.arc(t.x,t.y-8,t.r,0,Math.PI*2);ctx.fill();ctx.fillStyle='#6b4836';ctx.fillRect(t.x-5,t.y+4,10,24);
+        ctx.fillStyle='rgba(0,0,0,0.22)';ctx.beginPath();ctx.ellipse(t.x+8,t.y+14,t.r*.8,t.r*.35,0,0,Math.PI*2);ctx.fill();
+        const tg=ctx.createRadialGradient(t.x-10,t.y-18,4,t.x,t.y-8,t.r);tg.addColorStop(0,'#67cf6d');tg.addColorStop(.55,'#277a3c');tg.addColorStop(1,'#165029');
+        ctx.fillStyle=tg;ctx.beginPath();ctx.arc(t.x,t.y-8,t.r,0,Math.PI*2);ctx.fill();ctx.fillStyle='#593b2b';ctx.fillRect(t.x-5,t.y+4,10,24);
       });
-      // street lights
-      streetLights.forEach(l=>{ctx.fillStyle='#3a434d';ctx.fillRect(l.x-3,l.y-29,6,34);const g=ctx.createRadialGradient(l.x,l.y-29,2,l.x,l.y-29,70);g.addColorStop(0,'rgba(255,236,160,.38)');g.addColorStop(1,'rgba(255,236,160,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(l.x,l.y-29,70,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff0a3';ctx.shadowBlur=10;ctx.shadowColor='#fff0a3';ctx.beginPath();ctx.arc(l.x,l.y-29,6,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;});
+
+      streetLights.forEach(l=>{
+        ctx.fillStyle='#2e3640';ctx.fillRect(l.x-3,l.y-29,6,34);
+        const g=ctx.createRadialGradient(l.x,l.y-29,2,l.x,l.y-29,70);g.addColorStop(0,'rgba(255,236,160,0.4)');g.addColorStop(1,'rgba(255,236,160,0)');
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(l.x,l.y-29,70,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#fff0a3';ctx.shadowBlur=12;ctx.shadowColor='#fff0a3';ctx.beginPath();ctx.arc(l.x,l.y-29,6,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+      });
+
       npcCitizens.forEach(npc=>drawCharacterEntity(npc.x,npc.y,npc.color,npc.name+' · NPC',npc.walkCycle,npc.vx!==0?'walkX':'walkY'));
       npcVehicles.forEach(v=>drawDetailedVehicle(v.x,v.y,v.color,v.type,v.vx>0?0:(v.vx<0?Math.PI:(v.vy>0?Math.PI/2:-Math.PI/2))));
-      vehicles.forEach(v=>{if(v.location==='world'){if(v.type==='plane'){ctx.save();ctx.translate(v.x,v.y);ctx.fillStyle='rgba(255,255,255,.65)';ctx.shadowBlur=18;ctx.shadowColor='#fff';ctx.font='30px sans-serif';ctx.fillText(v.icon||'✈️',0,0);ctx.restore();}else drawDetailedVehicle(v.x,v.y,v.color,'car',0);}});
-      // animated collectibles
-      mapCoins.forEach(c=>{if(c.active){const bob=Math.sin(animFrame*.11+c.id)*5;ctx.save();const g=ctx.createRadialGradient(c.x,c.y+bob,2,c.x,c.y+bob,24);g.addColorStop(0,'rgba(255,226,80,.9)');g.addColorStop(1,'rgba(255,226,80,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(c.x,c.y+bob,24,0,Math.PI*2);ctx.fill();ctx.font='20px sans-serif';ctx.textAlign='center';ctx.fillText('🪙',c.x,c.y+bob+7);ctx.restore();}});
+      vehicles.forEach(v=>{
+        if(v.location==='world'){
+          if(v.type==='plane'){
+            ctx.save();ctx.translate(v.x,v.y);ctx.fillStyle='rgba(255,255,255,0.8)';ctx.shadowBlur=20;ctx.shadowColor='#fff';ctx.font='32px sans-serif';ctx.fillText(v.icon||'✈️',0,0);ctx.restore();
+          } else drawDetailedVehicle(v.x,v.y,v.color,'car',0);
+        }
+      });
+
+      mapCoins.forEach(c=>{
+        if(c.active){
+          const bob=Math.sin(animFrame*.11+c.id)*5;ctx.save();
+          const g=ctx.createRadialGradient(c.x,c.y+bob,2,c.x,c.y+bob,24);g.addColorStop(0,'rgba(255,226,80,0.9)');g.addColorStop(1,'rgba(255,226,80,0)');
+          ctx.fillStyle=g;ctx.beginPath();ctx.arc(c.x,c.y+bob,24,0,Math.PI*2);ctx.fill();
+          ctx.font='20px sans-serif';ctx.textAlign='center';ctx.fillText('🪙',c.x,c.y+bob+7);ctx.restore();
+        }
+      });
+
       drawParticles();
-      // day/night overlay
+
       const day = (Math.sin(visualTime * 0.00008 - 1.15)+1)/2;
       const night = 1-day;
-      ctx.fillStyle=`rgba(12,22,55,${(night*.34).toFixed(3)})`;ctx.fillRect(0,0,WORLD_WIDTH,WORLD_HEIGHT);
-      ctx.fillStyle=`rgba(255,172,90,${(Math.max(0,.45-Math.abs(day-.5))*.16).toFixed(3)})`;ctx.fillRect(0,0,WORLD_WIDTH,WORLD_HEIGHT);
+      ctx.fillStyle=`rgba(8,16,40,${(night*.36).toFixed(3)})`;ctx.fillRect(0,0,WORLD_WIDTH,WORLD_HEIGHT);
+      ctx.fillStyle=`rgba(255,160,80,${(Math.max(0,.45-Math.abs(day-.5))*.18).toFixed(3)})`;ctx.fillRect(0,0,WORLD_WIDTH,WORLD_HEIGHT);
       drawLightingOverlay();
       zonePulse += 0.03;
     }
 
-
     function drawVehicleLights(){
       const state=getDayState(); if(state==='DAY') return;
-      ctx.shadowBlur=10;ctx.shadowColor='#ffe7a0';ctx.fillStyle='#ffe9a3';
+      ctx.shadowBlur=12;ctx.shadowColor='#ffe7a0';ctx.fillStyle='#ffe9a3';
       ctx.fillRect(23,-10,4,5);ctx.fillRect(23,5,4,5);
-      ctx.shadowBlur=0;ctx.fillStyle='rgba(255,80,80,.85)';ctx.fillRect(-28,-10,3,5);ctx.fillRect(-28,5,3,5);
+      ctx.shadowBlur=0;ctx.fillStyle='rgba(255,80,80,0.85)';ctx.fillRect(-28,-10,3,5);ctx.fillRect(-28,5,3,5);
     }
 
     function drawDetailedVehicle(x, y, color, type, angle) {
@@ -1209,74 +1248,48 @@
       ctx.rotate(angle);
 
       if (type === 'truck') {
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
         ctx.fillRect(-45, -22, 90, 44);
 
         ctx.fillStyle = '#111';
-        ctx.fillRect(-35, -26, 14, 8);
-        ctx.fillRect(-15, -26, 14, 8);
-        ctx.fillRect(20, -26, 14, 8);
-        ctx.fillRect(-35, 18, 14, 8);
-        ctx.fillRect(-15, 18, 14, 8);
-        ctx.fillRect(20, 18, 14, 8);
+        ctx.fillRect(-35, -26, 14, 8); ctx.fillRect(-15, -26, 14, 8); ctx.fillRect(20, -26, 14, 8);
+        ctx.fillRect(-35, 18, 14, 8); ctx.fillRect(-15, 18, 14, 8); ctx.fillRect(20, 18, 14, 8);
 
-        ctx.fillStyle = color;
-        ctx.fillRect(20, -18, 22, 36);
-        ctx.fillStyle = '#222';
-        ctx.fillRect(26, -14, 10, 28);
+        ctx.fillStyle = color; ctx.fillRect(20, -18, 22, 36);
+        ctx.fillStyle = '#222'; ctx.fillRect(26, -14, 10, 28);
 
-        ctx.fillStyle = '#ecf0f1';
-        ctx.fillRect(-42, -20, 60, 40);
-        ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 2;
-        ctx.strokeRect(-42, -20, 60, 40);
+        ctx.fillStyle = '#ecf0f1'; ctx.fillRect(-42, -20, 60, 40);
+        ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 2; ctx.strokeRect(-42, -20, 60, 40);
 
       } else if (type === 'moto') {
-        ctx.fillStyle = 'rgba(0,0,0,0.4)';
-        ctx.fillRect(-16, -10, 32, 20);
+        ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(-16, -10, 32, 20);
 
         ctx.fillStyle = '#111';
         ctx.beginPath(); ctx.arc(-10, 0, 7, 0, Math.PI*2); ctx.fill();
         ctx.beginPath(); ctx.arc(10, 0, 7, 0, Math.PI*2); ctx.fill();
 
-        ctx.fillStyle = color;
-        ctx.fillRect(-12, -6, 24, 12);
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(8, -4, 4, 8);
+        ctx.fillStyle = color; ctx.fillRect(-12, -6, 24, 12);
+        ctx.fillStyle = '#fff'; ctx.fillRect(8, -4, 4, 8);
 
       } else {
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.fillRect(-32, -18, 64, 36);
+        ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(-32, -18, 64, 36);
 
         ctx.fillStyle = '#111';
-        ctx.fillRect(-22, -22, 12, 6);
-        ctx.fillRect(10, -22, 12, 6);
-        ctx.fillRect(-22, 16, 12, 6);
-        ctx.fillRect(10, 16, 12, 6);
+        ctx.fillRect(-22, -22, 12, 6); ctx.fillRect(10, -22, 12, 6);
+        ctx.fillRect(-22, 16, 12, 6); ctx.fillRect(10, 16, 12, 6);
 
         ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.roundRect(-28, -16, 56, 32, 6);
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        ctx.beginPath(); ctx.roundRect(-28, -16, 56, 32, 6); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1.5; ctx.stroke();
 
         ctx.fillStyle = '#111';
-        ctx.beginPath();
-        ctx.roundRect(-12, -12, 26, 24, 4);
-        ctx.fill();
+        ctx.beginPath(); ctx.roundRect(-12, -12, 26, 24, 4); ctx.fill();
 
-        ctx.fillStyle = '#5499c7';
-        ctx.fillRect(-8, -10, 8, 20);
-        ctx.fillRect(4, -10, 6, 20);
+        ctx.fillStyle = '#4592c4';
+        ctx.fillRect(-8, -10, 8, 20); ctx.fillRect(4, -10, 6, 20);
 
-        ctx.fillStyle = '#f1c40f';
-        ctx.fillRect(26, -12, 3, 6);
-        ctx.fillRect(26, 6, 3, 6);
-
-        ctx.fillStyle = '#e74c3c';
-        ctx.fillRect(-28, -12, 3, 6);
-        ctx.fillRect(-28, 6, 3, 6);
+        ctx.fillStyle = '#f1c40f'; ctx.fillRect(26, -12, 3, 6); ctx.fillRect(26, 6, 3, 6);
+        ctx.fillStyle = '#e74c3c'; ctx.fillRect(-28, -12, 3, 6); ctx.fillRect(-28, 6, 3, 6);
       }
 
       if(type!=='truck'||type==='car') drawVehicleLights();
@@ -1284,14 +1297,15 @@
     }
 
     function drawHouseInterior() {
-      ctx.fillStyle = '#2c1e1a'; ctx.fillRect(100, 100, 600, 400);
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.strokeRect(100, 100, 600, 400);
+      ctx.fillStyle = '#1a1311'; ctx.fillRect(100, 100, 600, 400);
+      ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2; ctx.strokeRect(100, 100, 600, 400);
       
-      ctx.fillStyle = '#3e2723'; ctx.fillRect(250, 200, 300, 200);
-      ctx.strokeStyle = '#fff'; ctx.strokeRect(250, 200, 300, 100);
+      ctx.fillStyle = '#2d1b17'; ctx.fillRect(250, 200, 300, 200);
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.strokeRect(250, 200, 300, 100);
 
-      ctx.fillStyle = '#0f0'; ctx.fillRect(300, 490, 100, 10);
-      ctx.fillStyle = '#fff'; ctx.font = '12px monospace'; ctx.textAlign = 'center'; ctx.fillText("EXIT TO CITY", 350, 480);
+      ctx.fillStyle = '#00ffcc'; ctx.shadowBlur = 10; ctx.shadowColor = '#00ffcc';
+      ctx.fillRect(300, 490, 100, 10); ctx.shadowBlur = 0;
+      ctx.fillStyle = '#fff'; ctx.font = '700 12px monospace'; ctx.textAlign = 'center'; ctx.fillText("EXIT TO CITY", 350, 480);
       
       let houseObj = houses.find(h => h.id === localPlayer.location);
       ctx.fillText(houseObj ? houseObj.furniture : '🛋️ Modern Interior', 400, 255);
@@ -1299,53 +1313,123 @@
 
     function drawCharacterEntity(x, y, color, nameText, cycleVal = 0, motionType = 'none') {
       ctx.save();
-      const bob = motionType !== 'none' ? Math.abs(Math.sin(cycleVal))*1.8 : 0;
-      const leg = motionType !== 'none' ? Math.sin(cycleVal)*3.5 : 0;
-      ctx.fillStyle='rgba(0,0,0,.23)';ctx.beginPath();ctx.ellipse(x,y+15,10,4,0,0,Math.PI*2);ctx.fill();
-      // legs / shoes
-      ctx.strokeStyle='#12171d';ctx.lineWidth=4;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x-3,y+3+bob);ctx.lineTo(x-4+leg,y+13);ctx.moveTo(x+3,y+3+bob);ctx.lineTo(x+4-leg,y+13);ctx.stroke();
-      // torso
-      const body=ctx.createLinearGradient(x-8,y-10,x+8,y+5);body.addColorStop(0,color);body.addColorStop(1,'rgba(255,255,255,.18)');ctx.fillStyle=body;roundedRectPath(x-8,y-9+bob,16,14,5);ctx.fill();
-      ctx.strokeStyle='rgba(255,255,255,.5)';ctx.lineWidth=1;ctx.stroke();
-      // head + hair
+      const bob = motionType !== 'none' ? Math.abs(Math.sin(cycleVal))*2 : 0;
+      const leg = motionType !== 'none' ? Math.sin(cycleVal)*4 : 0;
+      
+      ctx.fillStyle='rgba(0,0,0,0.3)';ctx.beginPath();ctx.ellipse(x,y+15,10,4,0,0,Math.PI*2);ctx.fill();
+
+      ctx.strokeStyle='#10141a';ctx.lineWidth=4;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(x-3,y+3+bob);ctx.lineTo(x-4+leg,y+13);ctx.moveTo(x+3,y+3+bob);ctx.lineTo(x+4-leg,y+13);ctx.stroke();
+
+      const body=ctx.createLinearGradient(x-8,y-10,x+8,y+5);body.addColorStop(0,color);body.addColorStop(1,'rgba(255,255,255,0.2)');
+      ctx.fillStyle=body;roundedRectPath(x-8,y-9+bob,16,14,5);ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1;ctx.stroke();
+
       ctx.fillStyle='#f0c6a8';ctx.beginPath();ctx.arc(x,y-16+bob,8,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#26313a';ctx.beginPath();ctx.arc(x,y-19+bob,8,Math.PI,Math.PI*2);ctx.fill();
-      // tiny face highlight
-      ctx.fillStyle='rgba(255,255,255,.65)';ctx.beginPath();ctx.arc(x+3,y-16+bob,1.2,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#1e2630';ctx.beginPath();ctx.arc(x,y-19+bob,8,Math.PI,Math.PI*2);ctx.fill();
+
+      ctx.fillStyle='rgba(255,255,255,0.8)';ctx.beginPath();ctx.arc(x+3,y-16+bob,1.2,0,Math.PI*2);ctx.fill();
       ctx.restore();
-      if(nameText){ctx.save();ctx.font='600 10px system-ui,sans-serif';ctx.textAlign='center';const tw=ctx.measureText(nameText).width+14;ctx.fillStyle='rgba(8,12,18,.72)';roundedRectPath(x-tw/2,y+27,tw,16,8);ctx.fill();ctx.fillStyle='#fff';ctx.fillText(nameText,x,y+38);ctx.restore();}
+
+      if(nameText){
+        ctx.save();ctx.font='700 10px system-ui,sans-serif';ctx.textAlign='center';
+        const tw=ctx.measureText(nameText).width+14;
+        ctx.fillStyle='rgba(8,12,18,0.82)';roundedRectPath(x-tw/2,y+25,tw,16,8);ctx.fill();
+        ctx.fillStyle='#fff';ctx.fillText(nameText,x,y+36);ctx.restore();
+      }
     }
 
     function drawAvatar(p) {
       ctx.save();
       let renderY=p.y;
-      if(p.hasAura){const pulse=18+Math.sin(animFrame*.12)*5;const g=ctx.createRadialGradient(p.x,p.y,pulse*.15,p.x,p.y,pulse*2.4);g.addColorStop(0,'rgba(0,255,255,.42)');g.addColorStop(1,'rgba(0,255,255,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,pulse*2.4,0,Math.PI*2);ctx.fill();}
-      if(p.isMounted && !p.vehicle){ctx.shadowBlur=18;ctx.shadowColor='#d946ef';ctx.fillStyle='#d946ef';roundedRectPath(p.x-18,p.y+10,36,7,4);ctx.fill();ctx.fillStyle='#67e8f9';ctx.fillRect(p.x-12,p.y+17,7,2);ctx.fillRect(p.x+5,p.y+17,7,2);ctx.shadowBlur=0;renderY-=5;}
-      const cycle=p.isMoving?animFrame*.34:0;drawCharacterEntity(p.x,renderY,p.color||'#fff','',cycle,p.isMoving?'walk':'none');
-      // equipment
-      if(!p.vehicle){if(p.equippedHat==='item_sunglasses'){ctx.fillStyle='#10151c';ctx.strokeStyle='#78e8ff';ctx.lineWidth=1.5;roundedRectPath(p.x-7,renderY-19,14,5,2);ctx.fill();ctx.stroke();}else if(p.equippedHat==='item_crown'){ctx.fillStyle='#ffd54a';ctx.shadowBlur=10;ctx.shadowColor='#ffd54a';ctx.beginPath();ctx.moveTo(p.x-7,renderY-24);ctx.lineTo(p.x-8,renderY-33);ctx.lineTo(p.x-2,renderY-27);ctx.lineTo(p.x,renderY-35);ctx.lineTo(p.x+3,renderY-27);ctx.lineTo(p.x+8,renderY-33);ctx.lineTo(p.x+7,renderY-24);ctx.closePath();ctx.fill();ctx.shadowBlur=0;}}
+      if(p.hasAura){
+        const pulse=18+Math.sin(animFrame*.12)*5;
+        const g=ctx.createRadialGradient(p.x,p.y,pulse*.15,p.x,p.y,pulse*2.4);
+        g.addColorStop(0,'rgba(0,255,204,0.5)');g.addColorStop(1,'rgba(0,255,204,0)');
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,pulse*2.4,0,Math.PI*2);ctx.fill();
+      }
+      if(p.isMounted && !p.vehicle){
+        ctx.shadowBlur=18;ctx.shadowColor='#00ffcc';ctx.fillStyle='#00ffcc';
+        roundedRectPath(p.x-18,p.y+10,36,7,4);ctx.fill();
+        ctx.fillStyle='#ffffff';ctx.fillRect(p.x-12,p.y+17,7,2);ctx.fillRect(p.x+5,p.y+17,7,2);
+        ctx.shadowBlur=0;renderY-=5;
+      }
+      const cycle=p.isMoving?animFrame*.34:0;
+      drawCharacterEntity(p.x,renderY,p.color||'#fff','',cycle,p.isMoving?'walk':'none');
+
+      if(!p.vehicle){
+        if(p.equippedHat==='item_sunglasses'){
+          ctx.fillStyle='#0a0f18';ctx.strokeStyle='#00ffcc';ctx.lineWidth=1.5;
+          roundedRectPath(p.x-7,renderY-19,14,5,2);ctx.fill();ctx.stroke();
+        }else if(p.equippedHat==='item_crown'){
+          ctx.fillStyle='#ffd86b';ctx.shadowBlur=10;ctx.shadowColor='#ffd86b';
+          ctx.beginPath();ctx.moveTo(p.x-7,renderY-24);ctx.lineTo(p.x-8,renderY-33);ctx.lineTo(p.x-2,renderY-27);
+          ctx.lineTo(p.x,renderY-35);ctx.lineTo(p.x+3,renderY-27);ctx.lineTo(p.x+8,renderY-33);ctx.lineTo(p.x+7,renderY-24);
+          ctx.closePath();ctx.fill();ctx.shadowBlur=0;
+        }
+      }
       ctx.restore();
-      // nameplate
-      ctx.save();ctx.font='600 11px system-ui,sans-serif';ctx.textAlign='center';const label=p.name+(p.id===localPlayer.id?'  • YOU':'');const w=ctx.measureText(label).width+18;ctx.fillStyle='rgba(8,12,18,.78)';roundedRectPath(p.x-w/2,p.y+27,w,18,9);ctx.fill();ctx.strokeStyle=p.id===localPlayer.id?'rgba(0,255,204,.7)':'rgba(255,255,255,.15)';ctx.stroke();ctx.fillStyle='#fff';ctx.fillText(label,p.x,p.y+40);ctx.restore();
-      if(p.bubble && Date.now()<p.bubble.timer){ctx.save();const display=p.bubble.text.length>28?p.bubble.text.slice(0,28)+'…':p.bubble.text;ctx.font='11px system-ui,sans-serif';const bw=Math.max(ctx.measureText(display).width+18,44);const bx=p.x-bw/2,by=renderY-52;ctx.fillStyle='rgba(255,255,255,.96)';roundedRectPath(bx,by,bw,24,10);ctx.fill();ctx.fillStyle='#131820';ctx.fillText(display,p.x,by+16);ctx.restore();}
-      if(p.emote&&Date.now()<p.emote.timer){ctx.save();ctx.font='22px sans-serif';ctx.textAlign='center';ctx.shadowBlur=12;ctx.shadowColor='#fff';ctx.fillText(p.emote.symbol,p.x,renderY-40-Math.sin((Date.now()-p.emote.timer+3000)/180)*6);ctx.restore();}
+
+      ctx.save();ctx.font='700 11px system-ui,sans-serif';ctx.textAlign='center';
+      const label=p.name+(p.id===localPlayer.id?'  • YOU':'');
+      const w=ctx.measureText(label).width+18;
+      ctx.fillStyle='rgba(8,12,18,0.85)';roundedRectPath(p.x-w/2,p.y+27,w,18,9);ctx.fill();
+      ctx.strokeStyle=p.id===localPlayer.id?'rgba(0,255,204,0.8)':'rgba(255,255,255,0.15)';ctx.stroke();
+      ctx.fillStyle='#fff';ctx.fillText(label,p.x,p.y+40);ctx.restore();
+
+      if(p.bubble && Date.now()<p.bubble.timer){
+        ctx.save();const display=p.bubble.text.length>28?p.bubble.text.slice(0,28)+'…':p.bubble.text;
+        ctx.font='600 11px system-ui,sans-serif';const bw=Math.max(ctx.measureText(display).width+18,44);
+        const bx=p.x-bw/2,by=renderY-52;
+        ctx.fillStyle='rgba(255,255,255,0.96)';roundedRectPath(bx,by,bw,24,10);ctx.fill();
+        ctx.fillStyle='#0a0f18';ctx.fillText(display,p.x,by+16);ctx.restore();
+      }
+      if(p.emote&&Date.now()<p.emote.timer){
+        ctx.save();ctx.font='22px sans-serif';ctx.textAlign='center';
+        ctx.shadowBlur=12;ctx.shadowColor='#fff';
+        ctx.fillText(p.emote.symbol,p.x,renderY-40-Math.sin((Date.now()-p.emote.timer+3000)/180)*6);
+        ctx.restore();
+      }
     }
 
     function draw() {
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      const targetX=localPlayer.x-canvas.width/(2*camera.zoom), targetY=localPlayer.y-canvas.height/(2*camera.zoom);
-      const maxX=Math.max(0,WORLD_WIDTH-canvas.width/camera.zoom), maxY=Math.max(0,WORLD_HEIGHT-canvas.height/camera.zoom);
-      const clampedX=Math.max(0,Math.min(maxX,targetX)),clampedY=Math.max(0,Math.min(maxY,targetY));
-      camera.x += (clampedX-camera.x)*.12; camera.y += (clampedY-camera.y)*.12;
       ctx.save();
-      if(cameraShake>.1) ctx.translate((Math.random()-.5)*cameraShake,(Math.random()-.5)*cameraShake);
-      if(localPlayer.location==='world'){
-        ctx.scale(camera.zoom,camera.zoom);ctx.translate(-camera.x,-camera.y);drawWorld();
-      }else drawHouseInterior();
-      drawAvatar(localPlayer);for(let id in players)if(id!==localPlayer.id&&players[id].location===localPlayer.location)drawAvatar(players[id]);
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0,0,window.innerWidth,window.innerHeight);
+
+      const viewW = window.innerWidth;
+      const viewH = window.innerHeight;
+
+      const targetX = localPlayer.x - viewW / (2 * camera.zoom);
+      const targetY = localPlayer.y - viewH / (2 * camera.zoom);
+      const maxX = Math.max(0, WORLD_WIDTH - viewW / camera.zoom);
+      const maxY = Math.max(0, WORLD_HEIGHT - viewH / camera.zoom);
+      
+      const clampedX = Math.max(0, Math.min(maxX, targetX));
+      const clampedY = Math.max(0, Math.min(maxY, targetY));
+
+      camera.x += (clampedX - camera.x) * 0.12;
+      camera.y += (clampedY - camera.y) * 0.12;
+
+      ctx.save();
+      if(cameraShake > 0.1) ctx.translate((Math.random()-.5)*cameraShake, (Math.random()-.5)*cameraShake);
+      
+      if(localPlayer.location === 'world'){
+        ctx.scale(camera.zoom, camera.zoom);
+        ctx.translate(-camera.x, -camera.y);
+        drawWorld();
+      } else {
+        drawHouseInterior();
+      }
+
+      drawAvatar(localPlayer);
+      for(let id in players) if(id!==localPlayer.id && players[id].location===localPlayer.location) drawAvatar(players[id]);
       ctx.restore();
-      // vignette
-      const vg=ctx.createRadialGradient(canvas.width/2,canvas.height/2,Math.min(canvas.width,canvas.height)*.15,canvas.width/2,canvas.height/2,Math.max(canvas.width,canvas.height)*.72);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.28)');ctx.fillStyle=vg;ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      const vg=ctx.createRadialGradient(viewW/2,viewH/2,Math.min(viewW,viewH)*.2,viewW/2,viewH/2,Math.max(viewW,viewH)*.75);
+      vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.35)');
+      ctx.fillStyle=vg; ctx.fillRect(0,0,viewW,viewH);
+      ctx.restore();
     }
 
     function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
