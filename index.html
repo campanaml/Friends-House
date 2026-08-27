@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neighborhood World - Mega City PRO (v4.2.0)</title>
+  <title>Neighborhood World - Mega City PRO (v4.1.0)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
@@ -94,14 +94,13 @@
 
   <div id="setup-modal">
     <div class="setup-box">
-      <h2 style="text-align:center;">MEGA CITY v4.2.0</h2>
-      <div style="font-size: 10px; text-align: center; color: #888;">FACU'S HOUSE ADDED</div>
+      <h2 style="text-align:center;">MEGA CITY v4.1.0</h2>
+      <div style="font-size: 10px; text-align: center; color: #888;">ACTIVE TRAFFIC & CROSSWALKS</div>
       <input type="text" id="username-input" placeholder="Enter Username..." maxlength="12">
       <input type="text" id="world-id-input" placeholder="World ID (Default: main-city)">
       <select id="avatar-select">
         <option value="martin">Martin</option>
         <option value="gaby">Gaby</option>
-        <option value="facu">Facu</option>
         <option value="default">Citizen</option>
       </select>
       <select id="color-select">
@@ -117,7 +116,7 @@
 
   <div id="game-container">
     <div id="hud">
-      <div>BUILD: <span style="color:#0f0;">v4.2.0 MEGA</span></div>
+      <div>BUILD: <span style="color:#0f0;">v4.1.0 MEGA</span></div>
       <div>ROOM: <span id="display-room-code">MAIN-CITY</span></div>
       <div>STATUS: <span id="status-tag" style="color:#0f0;">CONNECTING...</span></div>
       <div>LOCATION: <span id="location-tag">HOME</span></div>
@@ -173,7 +172,7 @@
   </div>
 
   <script>
-    const GAME_VERSION = "4.2.0";
+    const GAME_VERSION = "4.1.0";
     const WORLD_WIDTH = 4200;
     const WORLD_HEIGHT = 2800;
     const PLAYER_TIMEOUT_MS = 10000;
@@ -181,6 +180,7 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
+    // Fallback para dibujado de rectángulos redondeados si el navegador no soporta ctx.roundRect
     if (!ctx.roundRect) {
       ctx.roundRect = function(x, y, w, h, r) {
         if (typeof r === 'number') r = {tl: r, tr: r, br: r, bl: r};
@@ -248,7 +248,6 @@
     let houses = [
       { id: 'house_martin', name: "Martin's House", x: 200, y: 180, w: 220, h: 140, doorX: 310, doorY: 320, exitX: 310, exitY: 370, furniture: '📺 Smart TV & Sofa' },
       { id: 'house_gaby', name: "Gaby's House", x: 480, y: 180, w: 220, h: 140, doorX: 590, doorY: 320, exitX: 590, exitY: 370, furniture: '🌺 Indoor Garden' },
-      { id: 'house_facu', name: "Facu's House", x: 760, y: 180, w: 220, h: 140, doorX: 870, doorY: 320, exitX: 870, exitY: 370, furniture: '🎮 Gamer Setup & PC' },
       { id: 'house_police', name: "City Police 🚨", x: 1050, y: 180, w: 260, h: 140, doorX: 1180, doorY: 320, exitX: 1180, exitY: 370, furniture: '💻 Surveillance Hub' },
       { id: 'house_hospital', name: "General Hospital 🏥", x: 1400, y: 180, w: 260, h: 140, doorX: 1530, doorY: 320, exitX: 1530, exitY: 370, furniture: '💊 Medical Beds' },
       { id: 'house_bar', name: "The Neon Pub 🍻", x: 2100, y: 180, w: 260, h: 140, doorX: 2230, doorY: 320, exitX: 2230, exitY: 370, furniture: '🍸 Jukebox & Bar' },
@@ -279,7 +278,7 @@
     let npcCitizens = [
       { id: 'npc_1', name: 'Lucas', avatar: 'martin', color: '#00ffff', x: 500, y: 365, vx: 1.2, vy: 0, minX: 150, maxX: 850, minY: 365, maxY: 365, radius: 12, walkCycle: 0 },
       { id: 'npc_2', name: 'Sofia', avatar: 'gaby', color: '#ff00ff', x: 965, y: 700, vx: 0, vy: 1.2, minX: 965, maxX: 965, minY: 500, maxY: 1300, radius: 12, walkCycle: 0 },
-      { id: 'npc_3', name: 'Mateo', avatar: 'facu', color: '#ffff00', x: 2400, y: 365, vx: 1.0, vy: 0, minX: 2050, maxX: 2850, minY: 365, maxY: 365, radius: 12, walkCycle: 0 },
+      { id: 'npc_3', name: 'Mateo', avatar: 'default', color: '#ffff00', x: 2400, y: 365, vx: 1.0, vy: 0, minX: 2050, maxX: 2850, minY: 365, maxY: 365, radius: 12, walkCycle: 0 },
       { id: 'npc_4', name: 'Valentina', avatar: 'gaby', color: '#ff5722', x: 1965, y: 1000, vx: 0, vy: -1.0, minX: 1965, maxX: 1965, minY: 600, maxY: 1400, radius: 12, walkCycle: 0 },
       { id: 'npc_5', name: 'Diego', avatar: 'martin', color: '#00ff00', x: 2000, y: 1465, vx: 1.2, vy: 0, minX: 1500, maxX: 2800, minY: 1465, maxY: 1465, radius: 12, walkCycle: 0 }
     ];
@@ -634,7 +633,7 @@
     }
 
     function initMultiplayerGlobal() {
-      const hostRoomId = `nh-${activeWorldRoom}-host-v420`;
+      const hostRoomId = `nh-${activeWorldRoom}-host-v400`;
       setTimeout(() => {
         peer = new Peer(hostRoomId);
         peer.on('open', () => {
@@ -917,6 +916,7 @@
     }
 
     function drawWorld() {
+      // Calles (Asfalto Oscuro)
       ctx.fillStyle = '#1c1c1c';
       ctx.fillRect(0, 400, WORLD_WIDTH, 140);
       ctx.fillRect(0, 1500, WORLD_WIDTH, 140);
@@ -924,6 +924,7 @@
       ctx.fillRect(1900, 0, 140, WORLD_HEIGHT);
       ctx.fillRect(2900, 0, 140, WORLD_HEIGHT);
 
+      // Veredas
       ctx.fillStyle = '#7f8c8d';
       ctx.fillRect(0, 360, WORLD_WIDTH, 40);
       ctx.fillRect(0, 540, WORLD_WIDTH, 40);
@@ -937,6 +938,7 @@
       ctx.fillRect(2860, 0, 40, WORLD_HEIGHT);
       ctx.fillRect(3040, 0, 40, WORLD_HEIGHT);
 
+      // Pasos de cebra en las esquinas e intersecciones principales
       let intersectionsX = [900, 1900, 2900];
       let intersectionsY = [400, 1500];
 
@@ -949,6 +951,7 @@
         });
       });
 
+      // Líneas de tráfico centrales
       ctx.strokeStyle = '#f1c40f';
       ctx.lineWidth = 4;
       ctx.setLineDash([25, 20]);
