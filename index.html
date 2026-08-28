@@ -1538,6 +1538,46 @@
       update(); draw();
       requestAnimationFrame(gameLoop);
     }
+    const SUPABASE_URL = 'https://khheqtpkgacxneekqohb.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_ocqPe0IOctjjNQ2Wx3zAcw_FavwizjA';
+    
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    async function iniciarJugador(nombreIngresado) {
+      if (!nombreIngresado) return;
+
+      try {
+        let { data: user, error } = await supabaseClient
+          .from('users')
+          .select('*')
+          .eq('username', nombreIngresado)
+          .single();
+
+        if (error || !user) {
+          const { data: newUser, error: insertError } = await supabaseClient
+            .from('users')
+            .insert([{ username: nombreIngresado, coins: 1000, outfit_color: '#00ffcc' }])
+            .select()
+            .single();
+
+          if (insertError) throw insertError;
+          user = newUser;
+          console.log("¡Nuevo usuario creado en Supabase!");
+        } else {
+          console.log("¡Usuario encontrado en Supabase, bienvenido de vuelta!");
+        }
+
+        localPlayer.id = user.id;
+        localPlayer.username = user.username;
+        localPlayer.coins = user.coins;
+        localPlayer.outfit_color = user.outfit_color;
+
+        console.log(`Datos sincronizados -> Monedas: ${localPlayer.coins}`);
+
+      } catch (err) {
+        console.error("Error al conectar con Supabase:", err.message);
+      }
+    }
   </script>
 </body>
 </html>
