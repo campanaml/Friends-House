@@ -59,6 +59,19 @@
       box-shadow: 0 8px 25px rgba(0,255,204,0.3);
     }
     .setup-box button:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,255,204,0.5); filter: brightness(1.1); }
+    .supabase-status {
+      display:flex; align-items:center; justify-content:center; gap:7px;
+      min-height:16px; font-size:10px; color:#8a99ad; text-align:center; font-weight:700;
+      letter-spacing:.5px;
+    }
+    .supabase-status .dot-status {
+      width:7px; height:7px; border-radius:50%; background:#8a99ad;
+      box-shadow:0 0 8px currentColor;
+    }
+    .supabase-status.ok { color:#00ffcc; }
+    .supabase-status.ok .dot-status { background:#00ffcc; }
+    .supabase-status.warn { color:#ffd86b; }
+    .supabase-status.warn .dot-status { background:#ffd86b; }
 
     #game-container { display: none; width: 100vw; height: 100vh; position: relative; }
     canvas { display: block; background: #1a231c; width: 100vw; height: 100vh; }
@@ -164,7 +177,11 @@
         <option value="#ff5500">Sunset Orange</option>
       </select>
       
-      <button onclick="enterHouse()">ENTER METROPOLIS</button>
+      <div id="supabase-status" class="supabase-status">
+        <span class="dot-status"></span><span id="supabase-status-text">CLOUD SAVE READY</span>
+      </div>
+
+      <button id="enter-game-button" onclick="enterHouse()">ENTER METROPOLIS</button>
     </div>
   </div>
 
@@ -298,6 +315,16 @@
 
     let selectedAvatar = 'martin';
     let selectedColor = '#ffffff';
+
+    // Supabase: persistencia de perfil/monedas. PeerJS sigue gestionando el multiplayer actual.
+    const SUPABASE_URL = 'https://khheqtpkgacxneekqohb.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_ocqPe0IOctjjNQ2Wx3zAcw_FavwizjA';
+    let supabaseClient = null;
+    let supabasePlayerId = null;
+    let supabaseSaveTimer = null;
+    let supabaseSaveInFlight = false;
+    let supabaseSaveQueued = false;
+    let supabaseEnabled = false;
 
     let keys = {};
     let players = {};
@@ -490,6 +517,7 @@
       localStorage.setItem(`nh_coins_${localPlayer.name}`, localPlayer.coins);
       localStorage.setItem(`nh_inventory_${localPlayer.name}`, JSON.stringify(localPlayer.inventory));
       localStorage.setItem(`nh_hat_${localPlayer.name}`, localPlayer.equippedHat || '');
+      queueSupabasePlayerSave();
     }
 
     function toggleShop() {
@@ -662,8 +690,20 @@
       updatePlayerList();
     }
 
-    function enterHouse() {
+    let enteringGame = false;
+
+    async function enterHouse() {
+      if (enteringGame) return;
+      enteringGame = true;
+
+      const enterButton = document.getElementById('enter-game-button');
+      if (enterButton) {
+        enterButton.disabled = true;
+        enterButton.innerText = 'CONNECTING...';
+      }
+
       initAudio();
+
       let customName = document.getElementById('username-input').value.trim();
       if (!customName) {
         customName = `Citizen_${Math.floor(1000 + Math.random() * 9000)}`;
@@ -671,7 +711,7 @@
 
       selectedAvatar = document.getElementById('avatar-select').value;
       selectedColor = document.getElementById('color-select').value;
-      
+
       localStorage.setItem('nh_last_username', customName);
       localStorage.setItem('nh_last_color', selectedColor);
 
@@ -682,25 +722,38 @@
       localPlayer.name = customName;
       localPlayer.avatar = selectedAvatar;
       localPlayer.color = selectedColor;
-      localPlayer.id = Math.random().toString(36).substring(2, 7);
+      localPlayer.id = `local-${Math.random().toString(36).substring(2, 10)}`;
       localPlayer.location = `house_${selectedAvatar}`;
       localPlayer.x = 310;
       localPlayer.y = 350;
 
       const savedCoins = localStorage.getItem(`nh_coins_${localPlayer.name}`);
-      localPlayer.coins = savedCoins !== null ? parseInt(savedCoins, 10) : 100;
+      localPlayer.coins = savedCoins !== null && Number.isFinite(parseInt(savedCoins, 10))
+        ? parseInt(savedCoins, 10)
+        : 100;
 
       const savedInv = localStorage.getItem(`nh_inventory_${localPlayer.name}`);
+      localPlayer.inventory = [];
       if (savedInv) {
-        try { localPlayer.inventory = JSON.parse(savedInv); } catch(e) { localPlayer.inventory = []; }
+        try {
+          const parsed = JSON.parse(savedInv);
+          if (Array.isArray(parsed)) localPlayer.inventory = parsed;
+        } catch (e) {
+          localPlayer.inventory = [];
+        }
       }
 
       const savedHat = localStorage.getItem(`nh_hat_${localPlayer.name}`);
-      if (savedHat) localPlayer.equippedHat = savedHat;
+      localPlayer.equippedHat = savedHat || null;
+
+      // Recuperamos el perfil cloud. Si Supabase falla, el juego continúa
+      // normalmente usando localStorage como fallback.
+      await iniciarJugador(customName, selectedColor);
 
       savePlayerData();
       let homeObj = houses.find(h => h.id === localPlayer.location);
       document.getElementById('location-tag').innerText = homeObj ? homeObj.name.toUpperCase() : "HOME";
+      document.getElementById('coins-display').innerText = localPlayer.coins;
 
       document.getElementById('setup-modal').style.display = 'none';
       document.getElementById('game-container').style.display = 'block';
@@ -714,6 +767,12 @@
           broadcast({ type: 'move', player: localPlayer, vehicles, isHeartbeat: true });
         }
       }, 1000);
+
+      enteringGame = false;
+      if (enterButton) {
+        enterButton.disabled = false;
+        enterButton.innerText = 'ENTER METROPOLIS';
+      }
 
       requestAnimationFrame(gameLoop);
     }
@@ -1538,46 +1597,182 @@
       update(); draw();
       requestAnimationFrame(gameLoop);
     }
-    const SUPABASE_URL = 'https://khheqtpkgacxneekqohb.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_ocqPe0IOctjjNQ2Wx3zAcw_FavwizjA';
-    
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    function setSupabaseStatus(state, message) {
+      const box = document.getElementById('supabase-status');
+      const text = document.getElementById('supabase-status-text');
+      if (!box || !text) return;
+      box.classList.remove('ok', 'warn', 'error');
+      if (state) box.classList.add(state);
+      text.innerText = message;
+    }
 
-    async function iniciarJugador(nombreIngresado) {
-      if (!nombreIngresado) return;
+    function initSupabaseClient() {
+      try {
+        if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+          throw new Error('Supabase JS no está disponible.');
+        }
+        if (!supabaseClient) {
+          supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+              persistSession: false,
+              autoRefreshToken: false,
+              detectSessionInUrl: false
+            }
+          });
+        }
+        supabaseEnabled = true;
+        return true;
+      } catch (err) {
+        supabaseEnabled = false;
+        setSupabaseStatus('warn', 'CLOUD SAVE OFFLINE · LOCAL SAVE');
+        console.warn('[Supabase] No se pudo inicializar:', err);
+        return false;
+      }
+    }
+
+    async function iniciarJugador(nombreIngresado, colorIngresado = selectedColor) {
+      if (!nombreIngresado) return false;
+      if (!initSupabaseClient()) return false;
+
+      setSupabaseStatus('', 'CONNECTING CLOUD...');
 
       try {
         let { data: user, error } = await supabaseClient
           .from('users')
-          .select('*')
+          .select('id, username, coins, outfit_color, avatar, inventory, equipped_hat')
           .eq('username', nombreIngresado)
-          .single();
+          .maybeSingle();
 
-        if (error || !user) {
+        if (error) throw error;
+
+        if (!user) {
           const { data: newUser, error: insertError } = await supabaseClient
             .from('users')
-            .insert([{ username: nombreIngresado, coins: 1000, outfit_color: '#00ffcc' }])
-            .select()
+            .insert([{
+              username: nombreIngresado,
+              coins: localPlayer.coins,
+              outfit_color: colorIngresado || '#ffffff',
+              avatar: selectedAvatar || 'martin',
+              inventory: localPlayer.inventory || [],
+              equipped_hat: localPlayer.equippedHat || null
+            }])
+            .select('id, username, coins, outfit_color, avatar, inventory, equipped_hat')
             .single();
 
-          if (insertError) throw insertError;
-          user = newUser;
-          console.log("¡Nuevo usuario creado en Supabase!");
-        } else {
-          console.log("¡Usuario encontrado en Supabase, bienvenido de vuelta!");
+          if (insertError) {
+            // Si otro cliente creó el mismo username durante el INSERT,
+            // recuperamos el registro existente.
+            const { data: existingUser, error: retryError } = await supabaseClient
+              .from('users')
+              .select('id, username, coins, outfit_color, avatar, inventory, equipped_hat')
+              .eq('username', nombreIngresado)
+              .maybeSingle();
+
+            if (retryError || !existingUser) throw insertError;
+            user = existingUser;
+          } else {
+            user = newUser;
+          }
         }
 
-        localPlayer.id = user.id;
-        localPlayer.username = user.username;
-        localPlayer.coins = user.coins;
-        localPlayer.outfit_color = user.outfit_color;
+        supabasePlayerId = user.id;
+        localPlayer.id = String(user.id);
+        localPlayer.name = user.username || nombreIngresado;
 
-        console.log(`Datos sincronizados -> Monedas: ${localPlayer.coins}`);
+        if (typeof user.avatar === 'string' && ['martin', 'gaby', 'default'].includes(user.avatar)) {
+          localPlayer.avatar = user.avatar;
+          selectedAvatar = user.avatar;
+          const avatarSelect = document.getElementById('avatar-select');
+          if (avatarSelect) avatarSelect.value = user.avatar;
+        }
 
+        if (Array.isArray(user.inventory)) {
+          localPlayer.inventory = user.inventory;
+        }
+
+        if (typeof user.equipped_hat === 'string' && user.equipped_hat) {
+          localPlayer.equippedHat = user.equipped_hat;
+        } else if (user.equipped_hat === null) {
+          localPlayer.equippedHat = null;
+        }
+
+        const cloudCoins = Number(user.coins);
+        if (Number.isFinite(cloudCoins) && cloudCoins >= 0) {
+          localPlayer.coins = Math.floor(cloudCoins);
+        }
+
+        if (typeof user.outfit_color === 'string' && user.outfit_color.trim()) {
+          localPlayer.color = user.outfit_color;
+          selectedColor = user.outfit_color;
+          const colorSelect = document.getElementById('color-select');
+          if (colorSelect && [...colorSelect.options].some(o => o.value === user.outfit_color)) {
+            colorSelect.value = user.outfit_color;
+          }
+          localStorage.setItem('nh_last_color', user.outfit_color);
+        }
+
+        setSupabaseStatus('ok', 'CLOUD SAVE CONNECTED');
+        console.log(`[Supabase] Perfil sincronizado: ${localPlayer.name} · ${localPlayer.coins} coins`);
+        return true;
       } catch (err) {
-        console.error("Error al conectar con Supabase:", err.message);
+        supabasePlayerId = null;
+        supabaseEnabled = false;
+        setSupabaseStatus('warn', 'CLOUD SAVE OFFLINE · LOCAL SAVE');
+        console.warn('[Supabase] El juego continúa en modo local:', err?.message || err);
+        return false;
       }
     }
+
+    function queueSupabasePlayerSave() {
+      if (!supabaseEnabled || !supabaseClient || !supabasePlayerId || !localPlayer.name) return;
+
+      supabaseSaveQueued = true;
+      clearTimeout(supabaseSaveTimer);
+      supabaseSaveTimer = setTimeout(flushSupabasePlayerSave, 350);
+    }
+
+    async function flushSupabasePlayerSave() {
+      if (!supabaseEnabled || !supabaseClient || !supabasePlayerId || !localPlayer.name) return;
+      if (supabaseSaveInFlight) {
+        supabaseSaveQueued = true;
+        return;
+      }
+
+      supabaseSaveInFlight = true;
+      supabaseSaveQueued = false;
+
+      try {
+        const { error } = await supabaseClient
+          .from('users')
+          .update({
+            coins: Math.max(0, Math.floor(Number(localPlayer.coins) || 0)),
+            outfit_color: localPlayer.color || selectedColor || '#ffffff',
+            avatar: localPlayer.avatar || selectedAvatar || 'martin',
+            inventory: Array.isArray(localPlayer.inventory) ? localPlayer.inventory : [],
+            equipped_hat: localPlayer.equippedHat || null
+          })
+          .eq('id', supabasePlayerId);
+
+        if (error) throw error;
+      } catch (err) {
+        supabaseEnabled = false;
+        setSupabaseStatus('warn', 'CLOUD SAVE ERROR · LOCAL SAVE');
+        console.warn('[Supabase] No se pudo guardar el perfil:', err?.message || err);
+      } finally {
+        supabaseSaveInFlight = false;
+        if (supabaseSaveQueued) {
+          clearTimeout(supabaseSaveTimer);
+          supabaseSaveTimer = setTimeout(flushSupabasePlayerSave, 350);
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') flushSupabasePlayerSave();
+    });
+
+    // Inicialización temprana: no bloquea el menú.
+    initSupabaseClient();
   </script>
 </body>
 </html>
